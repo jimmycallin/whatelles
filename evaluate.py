@@ -23,7 +23,8 @@ def load_test_data(config):
 
 
 def load_data(path):
-    data = pd.read_csv(os.path.join(path, 'data.csv'), sep='\t', header=None)
+    data = pd.read_csv(os.path.join(path, 'data.csv'), sep='\t', header=None,
+                       iterator=True, chunksize=1000, quoting=pd.io.parsers.csv.QUOTE_NONE)
     data.columns = ['class_labels', 'removed_words', 'source_sentence', 'target_sentence', 'word_alignment']
     data['class_labels'] = data['class_labels'].str.split(' ')
     data['removed_words'] = data['removed_words'].str.split(' ')
