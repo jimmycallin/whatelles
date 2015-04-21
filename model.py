@@ -132,12 +132,7 @@ class NNPrediction():
             print("Best validation error rate: {} on iteration {}".format(best_error_rate, best_iteration))
 
     def predict(self, test_set_x, test_set_y):
-        shared_x = theano.shared(np.asarray(test_set_x, dtype=theano.config.floatX),
-                                 borrow=True)
-        shared_y = theano.shared(np.asarray(test_set_y, dtype=theano.config.floatX),
-                                 borrow=True)
-
-        test_model = self._initialize_test_model(shared_x, shared_y)
+        test_model = self._initialize_test_model(test_set_x, test_set_y)
         predictions = self._evaluate(test_model, self.batch_size, len(test_set_x))
         return predictions
 
@@ -346,5 +341,5 @@ config = {'n_in': 28 * 28,
           'n_hidden': 500,
           'n_out': 10,
           'activation_function': T.tanh,
-          'n_epochs': 100,
+          'n_epochs': 1000,
           'batch_size': 500}
