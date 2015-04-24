@@ -1,5 +1,6 @@
 resources/train/europarl/
 baseline/corpus.5.fr.trie.kenlm
+mmax/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
