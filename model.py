@@ -6,6 +6,7 @@ import theano
 import theano.tensor as T
 import numpy as np
 
+
 class NNPrediction():
 
     def __init__(self, config):
@@ -174,7 +175,7 @@ class MLP(object):
 
         """
 
-        self.hidden_layers = HiddenLayer(rng=rng,
+        self.hidden_layer = HiddenLayer(rng=rng,
                                         input=input,
                                         n_in=n_in,
                                         n_out=n_hidden,
