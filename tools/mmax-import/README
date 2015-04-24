@@ -1,0 +1,5 @@
+This converts corpora to mmax format, using a document index-file (create using doc-starts-at.py), and the corpus file.
+
+How to run:
+
+bash mmax-doc-import.sh ../train/europarl/doc-starts-at.csv data.en europarl < data.en
