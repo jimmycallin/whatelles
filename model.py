@@ -23,10 +23,12 @@ class NNPrediction():
         self.classifier = MLP(rng=self.rng,
                               input=self.x,
                               n_in=self.config['n_in'],
-                              n_hidden=self.config['n_hidden'],
-                              n_out=self.config['n_out'])
+                              n_hiddens=self.config['n_hiddens'],
+                              n_out=self.config['n_out'],
+                              activation_function=self.config['activation_function'],
+                              cost_function=self.config['cost_function'])
 
-        self.cost = (self.classifier.negative_log_likelihood(self.y)
+        self.cost = (self.classifier.calculate_cost(self.y)
                      + self.config.get('L1_reg', 0) * self.classifier.L1
                      + self.config.get('L2_reg', 0.0001) * self.classifier.L2_sqr)
 
@@ -152,7 +154,7 @@ class MLP(object):
     class).
     """
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out):
+    def __init__(self, rng, input, n_in, n_hiddens, n_out, activation_function, cost_function):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -166,8 +168,8 @@ class MLP(object):
         :param n_in: number of input units, the dimension of the space in
         which the datapoints lie
 
-        :type n_hidden: int
-        :param n_hidden: number of hidden units
+        :type n_hiddens: list[int]
+        :param n_hidden: list of number of hidden units for each hidden layer
 
         :type n_out: int
         :param n_out: number of output units, the dimension of the space in
@@ -175,20 +177,31 @@ class MLP(object):
 
         """
 
-        self.hidden_layer = HiddenLayer(rng=rng,
-                                        input=input,
-                                        n_in=n_in,
-                                        n_out=n_hidden,
-                                        activation=config['activation_function'])
+        self.hidden_layers = []
+        prev_layer_n = n_in
+        prev_input = input
+        for n_hidden in n_hiddens:
+            hidden_layer = HiddenLayer(rng=rng,
+                                       input=prev_input,
+                                       n_in=prev_layer_n,
+                                       n_out=n_hidden,
+                                       activation=activation_function)
+            self.hidden_layers.append(hidden_layer)
+            prev_layer_n = n_hidden
+            prev_input = hidden_layer.output
 
-        self.log_regression_layer = LogisticRegression(input=self.hidden_layer.output,
-                                                       n_in=n_hidden,
-                                                       n_out=n_out)
-        self.L1 = abs(self.hidden_layer.W).sum() + abs(self.log_regression_layer.W).sum()
-        self.L2_sqr = (self.hidden_layer.W ** 2).sum() + (self.log_regression_layer.W ** 2).sum()
-        self.negative_log_likelihood = self.log_regression_layer.negative_log_likelihood
+        self.log_regression_layer = LogisticRegression(input=self.hidden_layers[-1].output,
+                                                       n_in=n_hiddens[-1],
+                                                       n_out=n_out,
+                                                       cost_function=cost_function)
+
+        l1_hidden_layers = sum([abs(hl.W).sum() for hl in self.hidden_layers])
+        l2_hidden_layers = sum([(hl.W ** 2).sum() for hl in self.hidden_layers])
+        self.L1 = l1_hidden_layers + abs(self.log_regression_layer.W).sum()
+        self.L2_sqr = l2_hidden_layers + (self.log_regression_layer.W ** 2).sum()
         self.errors = self.log_regression_layer.errors
-        self.params = self.hidden_layer.params + self.log_regression_layer.params
+        self.calculate_cost = self.log_regression_layer.calculate_cost
+        self.params = [p for hl in self.hidden_layers for p in hl.params] + self.log_regression_layer.params
 
 
 class HiddenLayer():
@@ -237,7 +250,7 @@ class LogisticRegression(object):
     determine a class membership probability.
     """
 
-    def __init__(self, input, n_in, n_out):
+    def __init__(self, input, n_in, n_out, cost_function):
         """ Initialize the parameters of the logistic regression
 
         :type input: theano.tensor.TensorType
@@ -252,8 +265,12 @@ class LogisticRegression(object):
         :param n_out: number of output units, the dimension of the space in
                       which the labels lie
 
+        :type: cost_function: function
+        :param cost_function: Cost function to use.
+
         """
-        # start-snippet-1
+        self.cost_function = cost_function
+
         # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
         self.W = theano.shared(value=np.zeros((n_in, n_out),
                                               dtype=theano.config.floatX),
@@ -265,55 +282,14 @@ class LogisticRegression(object):
                                name='b',
                                borrow=True)
 
-        # symbolic expression for computing the matrix of class-membership
-        # probabilities
-        # Where:
-        # W is a matrix where column-k represent the separation hyper plain for
-        # class-k
-        # x is a matrix where row-j  represents input training sample-j
-        # b is a vector where element-k represent the free parameter of hyper
-        # plain-k
         self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
-
-        # symbolic description of how to compute prediction as class whose
-        # probability is maximal
         self.y_pred = T.argmax(self.p_y_given_x, axis=1)
-        # end-snippet-1
 
         # parameters of the model
         self.params = [self.W, self.b]
 
-    def negative_log_likelihood(self, y):
-        """Return the mean of the negative log-likelihood of the prediction
-        of this model under a given target distribution.
-
-        .. math::
-
-            \frac{1}{|\mathcal{D}|} \mathcal{L} (\theta=\{W,b\}, \mathcal{D}) =
-            \frac{1}{|\mathcal{D}|} \sum_{i=0}^{|\mathcal{D}|}
-                \log(P(Y=y^{(i)}|x^{(i)}, W,b)) \\
-            \ell (\theta=\{W,b\}, \mathcal{D})
-
-        :type y: theano.tensor.TensorType
-        :param y: corresponds to a vector that gives for each example the
-                  correct label
-
-        Note: we use the mean instead of the sum so that
-              the learning rate is less dependent on the batch size
-        """
-        # start-snippet-2
-        # y.shape[0] is (symbolically) the number of rows in y, i.e.,
-        # number of examples (call it n) in the minibatch
-        # T.arange(y.shape[0]) is a symbolic vector which will contain
-        # [0,1,2,... n-1] T.log(self.p_y_given_x) is a matrix of
-        # Log-Probabilities (call it LP) with one row per example and
-        # one column per class LP[T.arange(y.shape[0]),y] is a vector
-        # v containing [LP[0,y[0]], LP[1,y[1]], LP[2,y[2]], ...,
-        # LP[n-1,y[n-1]]] and T.mean(LP[T.arange(y.shape[0]),y]) is
-        # the mean (across minibatch examples) of the elements in v,
-        # i.e., the mean log-likelihood across the minibatch.
-        return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
-        # end-snippet-2
+    def calculate_cost(self, y):
+        return self.cost_function(self.p_y_given_x, y)
 
     def errors(self, y):
         """Return a float representing the number of errors in the minibatch
@@ -337,9 +313,40 @@ class LogisticRegression(object):
         else:
             raise NotImplementedError()
 
+
+class Reproduce(NNPrediction):
+
+    def __init__(self, corpus):
+
+        self.feature_matrix = self.featurify(corpus)
+
+        self.config = {'n_in': self.feature_matrix.shape[1],
+                       'n_hiddens': [7*20, 50],
+                       'n_out': 10,
+                       'activation_function': T.nnet.sigmoid,
+                       'cost_function': LogisticRegression.cross_entropy,
+                       'n_epochs': 1000,
+                       'batch_size': 500}
+
+        super(self.config)
+
+    def featurify(self, corpus):
+        pass
+
+
+def negative_log_likelihood(y_pred, y):
+    return -T.mean(T.log(y_pred)[T.arange(y.shape[0]), y])
+
+
+def cross_entropy(y_pred, y):
+    c_entrop = T.sum(T.nnet.categorical_crossentropy(y_pred, y))
+    return c_entrop
+
+
 config = {'n_in': 28 * 28,
-          'n_hidden': 500,
+          'n_hiddens': [500, 20],
           'n_out': 10,
-          'activation_function': T.tanh,
+          'activation_function': T.nnet.softmax,
+          'cost_function': cross_entropy,
           'n_epochs': 1000,
           'batch_size': 500}
