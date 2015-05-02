@@ -6,7 +6,6 @@ import theano
 import theano.tensor as T
 import numpy as np
 import pandas as pd
-import os
 import re
 
 
@@ -73,18 +72,28 @@ class NNPrediction():
 
         return train_model
 
-    def _initialize_test_model(self, train_set_x, train_set_y):
+    def _initialize_test_model(self, train_set_x):
+        shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
+                                 borrow=True)
+
+        # batch_interval = slice(self.index * self.batch_size, (self.index + 1) * self.batch_size)
+        test_model = theano.function(inputs=[],
+                                     outputs=self.classifier.y_pred,
+                                     givens={self.x: shared_x})
+        return test_model
+
+    def _initialize_dev_model(self, train_set_x, train_set_y):
         shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
                                  borrow=True)
         shared_y = theano.shared(np.asarray(train_set_y, dtype=theano.config.floatX),
                                  borrow=True)
 
         shared_y = T.cast(shared_y, 'int32')
-        batch_interval = slice(self.index * self.batch_size, (self.index + 1) * self.batch_size)
-        test_model = theano.function(inputs=[self.index],
+
+        test_model = theano.function(inputs=[],
                                      outputs=self.classifier.errors(self.y),
-                                     givens={self.x: shared_x[batch_interval],
-                                             self.y: shared_y[batch_interval]})
+                                     givens={self.x: shared_x,
+                                             self.y: shared_y})
         return test_model
 
     def train(self, train_set_x, train_set_y, validation_set_x=None, validation_set_y=None):
@@ -98,7 +107,7 @@ class NNPrediction():
 
         validation_model = None
         if validation_set_x is not None and validation_set_y is not None:
-            validation_model = self._initialize_test_model(validation_set_x, validation_set_y)
+            validation_model = self._initialize_dev_model(validation_set_x, validation_set_y)
             best_error_rate = np.inf
 
         n_train_batches = len(train_set_x) // self.batch_size
@@ -125,6 +134,7 @@ class NNPrediction():
                     print("Validation error rate: {}, epoch {}, minibatch {}".format(error_rate,
                                                                                      epoch,
                                                                                      minibatch_index))
+
                     if error_rate < best_error_rate:
                         if error_rate < best_error_rate * self.validation_improvement_threshold:
                             patience = max(patience, iteration * 2)
@@ -140,12 +150,46 @@ class NNPrediction():
             print("Best validation error rate: {} on iteration {}".format(best_error_rate, best_iteration))
 
     def predict(self, test_set_x, test_set_y):
-        test_model = self._initialize_test_model(test_set_x, test_set_y)
+        test_model = self._initialize_test_model(test_set_x)
         predictions = self._evaluate(test_model, self.batch_size, len(test_set_x))
         return predictions
 
     def _evaluate(self, test_model, batch_size, test_set_length):
-        return np.mean([test_model(i) for i in range(test_set_length // batch_size)])
+        return test_model()
+
+    def output(self, predictions, output_path=None):
+        """
+
+        """
+        pred_iter = iter(predictions)
+        test_instances = []
+        with open(self.config['development_filepath']) as test_data:
+            for line in test_data:
+                (class_labels,
+                 removed_words,
+                 source_sentence,
+                 target_sentence,
+                 alignments) = [x.strip() for x in line.split('\t')]
+                class_labels = class_labels.split()
+                removed_words = removed_words.split()
+                instances_predicted = []
+                for _ in range(len(class_labels)):
+                    instances_predicted.append(self.classes[next(pred_iter)])
+
+                test_instances.append([instances_predicted,
+                                       removed_words, source_sentence, target_sentence, alignments])
+
+                # print("{}\t{}".format(" ".join(instances_predicted), " ".join(removed_words)))
+
+        if output_path is not None:
+            with open(output_path, 'w') as output:
+                for line in test_instances:
+                    line_str = ""
+                    for column in line[:2]:
+                        line_str += " ".join(column) + "\t"
+                    line_str += "\t".join(line[2:])
+                    print(line_str)
+                    output.write(line_str + "\n")
 
 
 class MLP(object):
@@ -224,6 +268,7 @@ class MLP(object):
         self.L1 = l1_hidden_layers + abs(self.log_regression_layer.W).sum()
         self.L2_sqr = l2_hidden_layers + (self.log_regression_layer.W ** 2).sum()
         self.errors = self.log_regression_layer.errors
+        self.y_pred = self.log_regression_layer.y_pred
         self.calculate_cost = self.log_regression_layer.calculate_cost
         self.params = [p for hl in self.hidden_layers for p in hl.params] + self.log_regression_layer.params
 
@@ -356,6 +401,9 @@ class LogisticRegression(object):
     def calculate_cost(self, y):
         return self.cost_function(self.p_y_given_x, y)
 
+    def predicted(self):
+        return self.y_pred
+
     def errors(self, y):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
@@ -374,18 +422,21 @@ class LogisticRegression(object):
         if y.dtype.startswith('int'):
             # the T.neq operator returns a vector of 0s and 1s, where 1
             # represents a mistake in prediction
+
             return T.mean(T.neq(self.y_pred, y))
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("Input of y needs to have dtype int")
 
 
 class Reproduce(NNPrediction):
+
     """
     NEXT TIME: connect self.train_x and self.train_y to NNPrediction.
     Featurify isn't entirely done. It should only do ngrams where one of the classes is the focus word.
     Good work today.
     Also, refactorize the hell out of this. most of the data loading should be done in evaluate.py
     """
+
     def __init__(self):
         self.config = {'n_hiddens': [50],
                        'embedding_dimensionality': 20,
@@ -395,9 +446,10 @@ class Reproduce(NNPrediction):
                        'batch_size': 30,
                        'no_embeddings': 7,
                        'window_size': (3, 3),
-                       'classes_filepath': 'resources/train/europarl/classes.csv',
-                       'training_filepath': 'resources/train/europarl/data.csv',
-                       'development_filepath': 'resources/test/teddev/data.csv'}
+                       'classes_filepath': 'resources/train/devset_larger/classes.csv',
+                       'training_filepath': 'resources/train/devset_larger/data.csv',
+                       'development_filepath': 'resources/test/teddev/data.csv',
+                       'test_filepath': 'resources/test/teddev/data.csv'}
 
         self.no_words = 0
         self._word2id = dict()
@@ -429,6 +481,8 @@ class Reproduce(NNPrediction):
             """
         x_matrix = []
         y_vector = []
+        self.sentence_ids = []
+        sid = 0
         for (class_labels,
              removed_words,
              source_sentence,
@@ -439,24 +493,26 @@ class Reproduce(NNPrediction):
             if not isinstance(class_labels, list):  # we're not dealing with these for now
                 continue
             words = target_sentence.strip().lower().split()
+            words = ["<S>"] * self.config['window_size'][0] + words + ["<E>"] * self.config['window_size'][1]
             ngrams = self.ngramify(words, self.config['window_size'])
             for class_label, removed_word in zip(class_labels, removed_words):
                 for ngram in ngrams:
                     if ngram[self.config['window_size'][0]].startswith("replace_"):
+                        self.sentence_ids.append(sid)
                         x_matrix.append([self.word2id(ngram_word) for ngram_word in ngram])
                         y_vector.append(self.classes.index(class_label))
-                        continue
+
+            sid += 1
         return np.asarray(x_matrix, dtype=np.int32), np.asarray(y_vector, dtype=np.int32)
 
     def ngramify(self, words, window_size):
         for i, word in enumerate(words):
-            if i - window_size[0] < 0 or i + window_size[1] + 1 >= len(words):
+            if i - window_size[0] < 0 or i + window_size[1] >= len(words):
                 continue
-            left = i - window_size[0]
-            right = i + window_size[1] + 1
+
             context = []
-            for j in range(right - left):
-                context.append(words[left + j])
+            for j in range(sum(window_size) + 1):
+                context.append(words[i - window_size[0] + j])
             yield context
 
     def word2id(self, word):
