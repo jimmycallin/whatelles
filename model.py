@@ -1,15 +1,26 @@
-"""
-Most of the code taken form here: http://deeplearning.net/tutorial/
-"""
-
 import theano
 import theano.tensor as T
 import numpy as np
-import pandas as pd
-import re
 
 
 class NNPrediction():
+
+    model_parameters = {"n_epochs": "Number of epochs for training.",
+                        "seed": "Seed to use for random initialization.",
+                        "learning_rate": "The rate of learning gradient descent.",
+                        "batch_size": "How large batch for each iteration of training.",
+                        "validation_improvement_threshold": "How much the validation test must improve \
+                                                             within a given before aborting.",
+                        "min_iteration": "Run at least these many iterations without early stopping.",
+                        "activation_function": "Activation function to use.",
+                        "cost_function": "Cost_function to use.",
+                        "embedding_dimensionality": "The dimensionality of each embedding layer.",
+                        "no_embeddings": "Total number of embedding layers.",
+                        "L1_reg": "The L1 regression factor.",
+                        "L2_reg": "The L2 regression factor.",
+                        "classes": "The training output classes.",
+                        "n_hiddens": "List of hidden layers with each layers dimensionality.",
+                        "window_size": "A tuple of number of words to left and right to condition upon."}
 
     def __init__(self, config):
         self.config = config
@@ -22,9 +33,12 @@ class NNPrediction():
         self.validation_improvement_threshold = self.config.get('validation_improvement_threshold', 0.995)
         self.min_iterations = self.config.get('min_iterations', 10000)
         self.index = T.lscalar()
+
+    def _initialize_classifier(self):
+        self.config['vocab_size'] = self.no_words
+
         self.classifier = MLP(rng=self.rng,
                               input=self.x,
-                              n_in=self.config['n_in'],
                               n_hiddens=self.config['n_hiddens'],
                               n_out=self.config['n_out'],
                               activation_function=self.config['activation_function'],
@@ -51,7 +65,6 @@ class NNPrediction():
         # floats it doesn't make sense) therefore instead of returning
         # ``shared_y`` we will have to cast it to int. This little hack
         # lets ous get around this issue
-
         shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
                                  borrow=True)
         shared_y = theano.shared(np.asarray(train_set_y, dtype=theano.config.floatX),
@@ -96,17 +109,19 @@ class NNPrediction():
                                              self.y: shared_y})
         return test_model
 
-    def train(self, train_set_x, train_set_y, validation_set_x=None, validation_set_y=None):
+    def train(self, training_data, validation_data=None):
         """
         Trains the classifier given a training set.
         If given a validation set, validate the improvement of the model every :validation_frequency:th time.
             If no improvements have happened for a while, abort the training early.
         """
-
+        train_set_x, train_set_y = self.featurify(training_data, update_vocab=True)
+        self._initialize_classifier()
         train_model = self._initialize_train_model(train_set_x, train_set_y)
 
         validation_model = None
-        if validation_set_x is not None and validation_set_y is not None:
+        if validation_data is not None:
+            validation_set_x, validation_set_y = self.featurify(validation_data)
             validation_model = self._initialize_dev_model(validation_set_x, validation_set_y)
             best_error_rate = np.inf
 
@@ -149,7 +164,8 @@ class NNPrediction():
         if validation_model is not None:
             print("Best validation error rate: {} on iteration {}".format(best_error_rate, best_iteration))
 
-    def predict(self, test_set_x, test_set_y):
+    def predict(self, test_data):
+        test_set_x, test_set_y = self.featurify(test_data)
         test_model = self._initialize_test_model(test_set_x)
         predictions = self._evaluate(test_model, self.batch_size, len(test_set_x))
         return predictions
@@ -157,7 +173,7 @@ class NNPrediction():
     def _evaluate(self, test_model, batch_size, test_set_length):
         return test_model()
 
-    def output(self, predictions, output_path=None):
+    def output(self, predictions, output_path):
         """
 
         """
@@ -178,8 +194,6 @@ class NNPrediction():
 
                 test_instances.append([instances_predicted,
                                        removed_words, source_sentence, target_sentence, alignments])
-
-                # print("{}\t{}".format(" ".join(instances_predicted), " ".join(removed_words)))
 
         if output_path is not None:
             with open(output_path, 'w') as output:
@@ -207,7 +221,6 @@ class MLP(object):
     def __init__(self,
                  rng,
                  input,
-                 n_in,
                  n_hiddens,
                  n_out,
                  activation_function,
@@ -223,10 +236,6 @@ class MLP(object):
         :type input: theano.tensor.TensorType
         :param input: symbolic variable that describes the input of the
         architecture (one minibatch)
-
-        :type n_in: int
-        :param n_in: number of input units, the dimension of the space in
-        which the datapoints lie
 
         :type n_hiddens: list[int]
         :param n_hidden: list of number of hidden units for each hidden layer
@@ -429,123 +438,53 @@ class LogisticRegression(object):
 
 
 class Reproduce(NNPrediction):
-
-    """
-    NEXT TIME: connect self.train_x and self.train_y to NNPrediction.
-    Featurify isn't entirely done. It should only do ngrams where one of the classes is the focus word.
-    Good work today.
-    Also, refactorize the hell out of this. most of the data loading should be done in evaluate.py
     """
 
-    def __init__(self):
-        self.config = {'n_hiddens': [50],
-                       'embedding_dimensionality': 20,
-                       'activation_function': T.nnet.sigmoid,
-                       'cost_function': cross_entropy,
-                       'n_epochs': 300,
-                       'batch_size': 30,
-                       'no_embeddings': 7,
-                       'window_size': (3, 3),
-                       'classes_filepath': 'resources/train/devset_larger/classes.csv',
-                       'training_filepath': 'resources/train/devset_larger/data.csv',
-                       'development_filepath': 'resources/test/teddev/data.csv',
-                       'test_filepath': 'resources/test/teddev/data.csv'}
+    """
 
-        self.no_words = 0
+    model_parameters = dict(NNPrediction.model_parameters)
+
+    def __init__(self, config):
         self._word2id = dict()
-        self.classes = self.load_classes(self.config['classes_filepath'])
-        print("Loading training data... ")
-        training_data = self.load_data(self.config['training_filepath'])
-        self.train_x, self.train_y = self.featurify(training_data)
-        print("Loading development_data data... ")
-        development_data = self.load_data(self.config['development_filepath'])
-        self.dev_x, self.dev_y = self.featurify(development_data)
+        self.classes = config['classes']
+        self.no_words = 0
+        config['n_out'] = len(self.classes)
+        self.word2id("UNK", update_vocab=True)  # initialize unknown id
 
-        self.config['n_in'] = self.train_x.shape[0]
-        self.config['n_out'] = len(self.classes)
-        self.config['vocab_size'] = self.no_words
+        super().__init__(config)
 
-        super().__init__(self.config)
-
-    def load_classes(self, classes_filepath):
-        with open(classes_filepath) as f:
-            return [line.split(",")[1].strip() for line in f]
-
-    def featurify(self, data):
-        """ Param data: dataframe of (class_labels,
-                                      removed_words,
-                                      source_sentence,
-                                      target_sentence,
-                                      source2target_alignment
-                                      target2source_alignment)
-            """
+    def featurify(self, sentences, update_vocab=False):
+        """
+        Param sentences: list of data_utils.Sentence instances
+        """
         x_matrix = []
         y_vector = []
-        self.sentence_ids = []
-        sid = 0
-        for (class_labels,
-             removed_words,
-             source_sentence,
-             target_sentence,
-             source2target_alignment,
-             target2source_alignment) in data.itertuples(index=False):
 
-            if not isinstance(class_labels, list):  # we're not dealing with these for now
-                continue
-            words = target_sentence.strip().lower().split()
-            words = ["<S>"] * self.config['window_size'][0] + words + ["<E>"] * self.config['window_size'][1]
-            ngrams = self.ngramify(words, self.config['window_size'])
-            for class_label, removed_word in zip(class_labels, removed_words):
-                for ngram in ngrams:
-                    if ngram[self.config['window_size'][0]].startswith("replace_"):
-                        self.sentence_ids.append(sid)
-                        x_matrix.append([self.word2id(ngram_word) for ngram_word in ngram])
-                        y_vector.append(self.classes.index(class_label))
+        for sentence in sentences:
+            target_contexts = sentence.removed_words_target_contexts(*self.config['window_size'])
+            sentence_details = zip(sentence.classes, sentence.source_words_removed, target_contexts)
+            for class_label, source_word_removed, target_context in sentence_details:
+                features = []
+                # Add target context features and source word replace feature
+                for context_word in target_context:
+                    if context_word == "REPLACE":
+                        # TODO: fix bigram source words
+                        features.append(self.word2id(" ".join(source_word_removed), update_vocab=update_vocab))
+                    else:
+                        features.append(self.word2id(context_word, update_vocab=update_vocab))
 
-            sid += 1
+                x_matrix.append(features)
+                y_vector.append(self.classes.index(class_label))
         return np.asarray(x_matrix, dtype=np.int32), np.asarray(y_vector, dtype=np.int32)
 
-    def ngramify(self, words, window_size):
-        for i, word in enumerate(words):
-            if i - window_size[0] < 0 or i + window_size[1] >= len(words):
-                continue
-
-            context = []
-            for j in range(sum(window_size) + 1):
-                context.append(words[i - window_size[0] + j])
-            yield context
-
-    def word2id(self, word):
-        if word not in self._word2id:
+    def word2id(self, word, update_vocab=False):
+        if word not in self._word2id and update_vocab:
             self._word2id[word] = self.no_words
             self.no_words += 1
+        elif word not in self._word2id and not update_vocab:
+            return self.word2id("UNK", update_vocab=True)
+
         return self._word2id[word]
-
-    def load_data(self, data_path):
-        """
-        Returns data as tuple of (class_labels,
-                                  removed_words,
-                                  source_sentence,
-                                  target_sentence,
-                                  source2target_alignment
-                                  target2source_alignment)
-        """
-        data = pd.read_csv(data_path,
-                           sep='\t',
-                           header=None,
-                           quoting=pd.io.parsers.csv.QUOTE_NONE)
-        data.columns = ['class_labels', 'removed_words', 'source_sentence', 'target_sentence', 'word_alignment']
-        data['class_labels'] = data['class_labels'].str.split(' ')
-        data['removed_words'] = data['removed_words'].str.split(' ')
-        data = data.join(data.word_alignment.apply(aggregate_alignments)
-                         .apply(pd.Series)
-                         .rename(columns={0: 'source2target_alignment', 1: 'target2source_alignment'})
-                         ).drop('word_alignment', axis=1)
-        return data
-
-    def _test_featurify(self, corpus):
-        f_matrix = np.asarray([[1, 2, 3], [6, 5, 2], [2, 1, 4]], dtype=np.int32)
-        return f_matrix
 
 
 def negative_log_likelihood(y_pred, y):
@@ -555,32 +494,3 @@ def negative_log_likelihood(y_pred, y):
 def cross_entropy(y_pred, y):
     c_entrop = T.sum(T.nnet.categorical_crossentropy(y_pred, y))
     return c_entrop
-
-
-def aggregate_alignments(align_line):
-    """
-    Parse the alignment file.
-
-    Return:
-      - s2t: a dict mapping source position to target position
-      - t2s: a dict mapping target position to source position
-    """
-    align_tokens = re.split('\s+', align_line.strip())
-    s2t = {}
-    t2s = {}
-    # process alignments
-    for align_token in align_tokens:
-        if align_token == '':
-            continue
-        (src_pos, tgt_pos) = re.split('\-', align_token)
-        src_pos = int(src_pos)
-        tgt_pos = int(tgt_pos)
-        if src_pos not in s2t:
-            s2t[src_pos] = []
-        s2t[src_pos].append(tgt_pos)
-
-        if tgt_pos not in t2s:
-            t2s[tgt_pos] = []
-        t2s[tgt_pos].append(src_pos)
-
-    return (s2t, t2s)

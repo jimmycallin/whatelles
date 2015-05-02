@@ -1,38 +1,44 @@
-import expy
-import os
 import sys
-import pandas as pd
 from importlib import import_module
 
-classes = ('ce', 'elle', 'elles', 'il', 'ils', 'c\'', 'ça', 'cela', 'on', 'OTHER')
-
-other = ('le', 'l\'', 'se', 's\'', 'y', 'en', 'qui', 'que', 'qu\'', 'tout', 'faire', 'ont',
-         'fait', 'est', 'parler', 'comprendre', 'chose', 'choses', 'ne', 'pas', 'dessus', 'dedans')
+from data_utils import Sentence
 
 
-def load_classes(config):
-    return pd.read_csv(os.path.join(config['train_path'], 'classes.csv'), header=None)
+def load_classes(classes_filepath):
+    with open(classes_filepath) as f:
+        return [line.split(",")[1].strip() for line in f]
 
 
 def load_training_data(config):
-    return load_data(config.pop('train_path'))
+    return load_data(config['training_filepath'])
+
+
+def load_development_data(config):
+    return load_data(config['development_filepath'])
 
 
 def load_test_data(config):
-    return load_data(config.pop('test_path'))
+    return load_data(config['test_filepath'])
 
 
-def load_data(path):
-    data = pd.read_csv(os.path.join(path, 'data.csv'), sep='\t', header=None,
-                       iterator=True, chunksize=1000, quoting=pd.io.parsers.csv.QUOTE_NONE)
-    data.columns = ['class_labels', 'removed_words', 'source_sentence', 'target_sentence', 'word_alignment']
-    data['class_labels'] = data['class_labels'].str.split(' ')
-    data['removed_words'] = data['removed_words'].str.split(' ')
-    return data
+def load_data(data_path):
+    """
+    Returns data as a list of data_utils.Sentence instances.
+    """
+    with open(data_path) as data:
+        for line in data:
+            (class_labels,
+             removed_words,
+             source_sentence,
+             target_sentence,
+             alignments) = line.split("\t")
 
-
-def get_project(config, test_data):
-    return expy.Project(config.pop('project_name'), test_data=test_data)
+            sentence = Sentence(source_sentence,
+                                target_sentence,
+                                class_labels.split(),
+                                removed_words.split(),
+                                alignments.split())
+            yield sentence
 
 
 def load_configs():
@@ -41,17 +47,12 @@ def load_configs():
 
 
 def train_model(config):
-    if not os.path.isfile(config['model_store_path']):
-        model_parameters = {x: config[x] for x in config['model'].model_parameters}
-        model = config['model'](**model_parameters)
-        print("Model not found at {}, \n building model from scratch.".format(config['model_store_path']))
-        model.train(load_training_data(config))
-        model.store(config['model_store_path'])
-        print("Stored trained model at {}".format(config['model_store_path']))
-        return model
-    else:
-        print("Loaded existing model from {}".format(config['store_path']))
-        return config['model'].load(config['model_store_path'])
+    model_parameters = {x: config[x] for x in config['model'].model_parameters if x in config}
+    model = config['model'](model_parameters)
+    training_data = load_training_data(config)
+    development_data = load_development_data(config)
+    model.train(training_data, development_data)
+    return model
 
 
 def test_model(model, test_data):
@@ -60,24 +61,44 @@ def test_model(model, test_data):
 
 
 def evaluate(config):
+    config['classes'] = load_classes(config['classes_filepath'])
     test_data = load_test_data(config)
-    project = get_project(config, test_data)
     model = train_model(config)
     predictions = test_model(model, test_data)
-    print("Storing experiment...")
-    experiment = project.new_experiment(predictions,
-                                        config,
-                                        description=config.pop('description'),
-                                        tags=config.pop('tags'))
-
-    experiment.experiment_report(accuracy=True,
-                                 precision=True,
-                                 recall=True,
-                                 f1_score=True)
+    return predictions
 
 
-def prepare_testing():
-    sys.argv.append('config.test')
+def output(predictions, classes, test_path, output_path):
+    """
+    Output test according to test data template.
+    This should be read by discoMT_scorer.pl.
+    """
+    pred_iter = iter(predictions)
+    test_instances = []
+    with open(test_path) as test_data:
+        for line in test_data:
+            (class_labels,
+             removed_words,
+             source_sentence,
+             target_sentence,
+             alignments) = [x.strip() for x in line.split('\t')]
+            class_labels = class_labels.split()
+            removed_words = removed_words.split()
+            instances_predicted = []
+            for _ in range(len(class_labels)):
+                instances_predicted.append(classes[next(pred_iter)])
+
+            test_instances.append([instances_predicted,
+                                   removed_words, source_sentence, target_sentence, alignments])
+
+    with open(output_path, 'w') as output:
+        for line in test_instances:
+            line_str = ""
+            for column in line[:2]:
+                line_str += " ".join(column) + "\t"
+            line_str += "\t".join(line[2:])
+            print(line_str)
+            output.write(line_str + "\n")
 
 
 if __name__ == '__main__':
