@@ -57,36 +57,44 @@ class NNPrediction():
                         for param, gparam in zip(self.classifier.params, gparams)]
 
     def _initialize_train_model(self, train_set_x, train_set_y):
+        """
+        Initializes the training model.
 
-        # When storing data on the GPU it has to be stored as floats
-        # therefore we will store the labels as ``floatX`` as well
-        # (``shared_y`` does exactly that). But during our computations
-        # we need them as ints (we use labels as index, and if they are
-        # floats it doesn't make sense) therefore instead of returning
-        # ``shared_y`` we will have to cast it to int. This little hack
-        # lets ous get around this issue
+        Params:
+        :train_set_x: A matrix of features, where each row corresponds to a new training instance.
+        :train_set_y: A list of corresponding training outputs.
+
+        Returns a training model theano function, taking a batch index as input.
+        """
         shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
                                  borrow=True)
         shared_y = theano.shared(np.asarray(train_set_y, dtype=theano.config.floatX),
                                  borrow=True)
 
+        # GPU only handles float32 while the output should actually be int.
         shared_y = T.cast(shared_y, 'int32')
 
         batch_interval = slice(self.index * self.batch_size, (self.index + 1) * self.batch_size)
-        train_model = theano.function(
-            inputs=[self.index],
-            outputs=self.cost,
-            updates=self.updates,
-            givens={
-                self.x: shared_x[batch_interval],
-                self.y: shared_y[batch_interval]
-            }
-        )
+        train_model = theano.function(inputs=[self.index],
+                                      outputs=self.cost,
+                                      updates=self.updates,
+                                      givens={self.x: shared_x[batch_interval],
+                                              self.y: shared_y[batch_interval]}
+                                      )
 
         return train_model
 
-    def _initialize_test_model(self, train_set_x):
-        shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
+    def _initialize_test_model(self, test_set_x):
+        """
+        Initializes the test model.
+
+        Params:
+        :test_set_x: A matrix of features, where each row corresponds to a new instance.
+
+        Returns a test model theano function. When calling the function, it runs the test.
+        The test model outputs a list of predicted classes.
+        """
+        shared_x = theano.shared(np.asarray(test_set_x, dtype=theano.config.floatX),
                                  borrow=True)
 
         # batch_interval = slice(self.index * self.batch_size, (self.index + 1) * self.batch_size)
@@ -96,11 +104,21 @@ class NNPrediction():
         return test_model
 
     def _initialize_dev_model(self, train_set_x, train_set_y):
+        """
+        Initializes the development model.
+
+        Params:
+        :test_set_x: A matrix of features, where each row corresponds to a new instance.
+
+        Returns a dev model theano function. When calling the function, it runs the test.
+        Output of dev model is the mean error value.
+        """
         shared_x = theano.shared(np.asarray(train_set_x, dtype=theano.config.floatX),
                                  borrow=True)
         shared_y = theano.shared(np.asarray(train_set_y, dtype=theano.config.floatX),
                                  borrow=True)
 
+        # GPU only handles float32 while the output should actually be int.
         shared_y = T.cast(shared_y, 'int32')
 
         test_model = theano.function(inputs=[],
@@ -111,7 +129,7 @@ class NNPrediction():
 
     def train(self, training_data, validation_data=None):
         """
-        Trains the classifier given a training set.
+        Trains the classifier given a training set (list of data_utils.Sentence instances).
         If given a validation set, validate the improvement of the model every :validation_frequency:th time.
             If no improvements have happened for a while, abort the training early.
         """
@@ -402,7 +420,6 @@ class LogisticRegression(object):
                                borrow=True)
 
         self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
-        self.y_pred = T.argmax(self.p_y_given_x, axis=1)
 
         # parameters of the model
         self.params = [self.W, self.b]
@@ -411,7 +428,13 @@ class LogisticRegression(object):
         return self.cost_function(self.p_y_given_x, y)
 
     def predicted(self):
-        return self.y_pred
+        return T.argmax(self.p_y_given_x, axis=1)
+
+    def threshold_moving(self):
+        """
+        http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.9436&rep=rep1&type=pdf
+        """
+        pass
 
     def errors(self, y):
         """Return a float representing the number of errors in the minibatch
@@ -438,6 +461,7 @@ class LogisticRegression(object):
 
 
 class Reproduce(NNPrediction):
+
     """
 
     """
