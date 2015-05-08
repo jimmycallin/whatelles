@@ -6,7 +6,7 @@ from model import PronounPrediction
 def get_configs():
     config = {'model': PronounPrediction,
               'n_hiddens': [50],
-              'embedding_dimensionality': 20,  # look into dimensionality more later. 50 worked well.
+              'embedding_dimensionality': 20,
               'activation_function': T.tanh,
               'cost_function': cross_entropy,
               'n_epochs': 1000,
