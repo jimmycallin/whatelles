@@ -199,7 +199,7 @@ class LogisticRegression(object):
                                borrow=True)
 
         self.p_y_given_x = T.nnet.softmax(T.dot(input, self.W) + self.b)
-
+        self.y_pred = T.argmax(self.p_y_given_x, axis=1)
         # parameters of the model
         self.params = [self.W, self.b]
 
@@ -207,7 +207,7 @@ class LogisticRegression(object):
         return self.cost_function(self.p_y_given_x, y)
 
     def predicted(self):
-        return T.argmax(self.p_y_given_x, axis=1)
+        return self.y_pred
 
     def threshold_moving(self):
         """
@@ -247,7 +247,7 @@ class NNPrediction():
                         "batch_size": "How large batch for each iteration of training.",
                         "validation_improvement_threshold": "How much the validation test must improve \
                                                              within a given before aborting.",
-                        "min_iteration": "Run at least these many iterations without early stopping.",
+                        "min_iterations": "Run at least these many iterations without early stopping.",
                         "activation_function": "Activation function to use.",
                         "cost_function": "Cost_function to use.",
                         "embedding_dimensionality": "The dimensionality of each embedding layer.",
@@ -256,7 +256,8 @@ class NNPrediction():
                         "L2_reg": "The L2 regression factor.",
                         "classes": "The training output classes.",
                         "n_hiddens": "List of hidden layers with each layers dimensionality.",
-                        "window_size": "A tuple of number of words to left and right to condition upon."}
+                        "window_size": "A tuple of number of words to left and right to condition upon.",
+                        "n_tags": "Number of previous POS tags to look for."}
 
     def __init__(self, config):
         self.config = config
@@ -411,6 +412,7 @@ class NNPrediction():
                         best_iteration = iteration
 
                 if patience <= iteration:
+                    print("Breaking at iteration {}".format(iteration))
                     break_early = True
                     break
 
@@ -461,6 +463,7 @@ class NNPrediction():
 
 
 class PronounPrediction(NNPrediction):
+
     """
 
     """
@@ -485,19 +488,41 @@ class PronounPrediction(NNPrediction):
 
         for sentence in sentences:
             target_contexts = sentence.removed_words_target_contexts(*self.config['window_size'])
-            sentence_details = zip(sentence.classes, sentence.source_words_removed, target_contexts)
-            for class_label, source_word_removed, target_context in sentence_details:
+            source_contexts = sentence.removed_words_source_contexts(*self.config['window_size'])
+            sentence_details = zip(sentence.removed_words_source_indices, target_contexts, source_contexts)
+            for k, (source_indices, target_context, source_context) in enumerate(sentence_details):
                 features = []
-                # Add target context features and source word replace feature
-                for context_word in target_context:
-                    if context_word == "REPLACE":
-                        # TODO: fix bigram source words
-                        features.append(self.word2id(" ".join(source_word_removed), update_vocab=update_vocab))
+                # Add target context features
+                for i, context_word in enumerate(target_context):
+                    if i != len(target_context) // 2:  # ignore word to replace
+                        features.append(self.word2id(context_word, update_vocab=update_vocab))
+
+                # Add source context features
+                for context_word in source_context:
+                    if isinstance(context_word, list):
+                        features.append(self.word2id(context_word[0], update_vocab=update_vocab))
                     else:
                         features.append(self.word2id(context_word, update_vocab=update_vocab))
 
+                # Add 5 previous nouns
+                noun_tags = ("NN", "NNS", "NNP", "NNPS", "PRP", "PRP$")
+                for nouns in sentence.get_previous_target_words_with_tag(source_indices[0],
+                                                                         self.config['n_tags'], tags=noun_tags):
+                    # only add first target noun
+                    features.append(self.word2id(nouns[0]))
+
+                # Add 5 previous articles
+                article_tags = ("DT",)
+                for articles in sentence.get_previous_target_words_with_tag(source_indices[0],
+                                                                            self.config['n_tags'], tags=article_tags):
+                    # only add first target noun
+                    features.append(self.word2id(articles[0]))
+
                 x_matrix.append(features)
-                y_vector.append(self.classes.index(class_label))
+                # only store y values when we actually know them. some test data comes without.
+                if len(sentence.classes) > 0:
+                    y_vector.append(self.classes.index(sentence.classes[k]))
+
         return np.asarray(x_matrix, dtype=np.int32), np.asarray(y_vector, dtype=np.int32)
 
     def word2id(self, word, update_vocab=False):
