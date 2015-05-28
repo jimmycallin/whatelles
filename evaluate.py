@@ -1,5 +1,6 @@
 import sys
 import fileinput
+import itertools
 from importlib import import_module
 
 from data_utils import Sentence
@@ -10,8 +11,19 @@ def load_classes(classes_filepath):
         return [line.split(",")[1].strip() for line in f]
 
 
+def load_class_distributions(classes_filepath):
+    with open(classes_filepath) as f:
+        return {line.split(",")[1].strip(): int(line.split(",")[0].strip()) for line in f}
+
+
 def load_training_data(config):
-    return load_data(config['training_filepath'])
+    if 'oversample_filepath' in config:
+        class_distribution = load_class_distributions(config['classes_filepath'])
+        oversample_from = oversample(load_data(config['oversample_filepath']), class_distribution)
+        training_data = load_data(config['training_filepath'])
+        return itertools.chain(training_data, oversample_from)
+    else:
+        return load_data(config['training_filepath'])
 
 
 def load_development_data(config):
@@ -32,11 +44,15 @@ def load_data(data_paths):
     with fileinput.input(files=data_paths) as data:
         last_sentence = None
         for line in data:
-            (class_labels,
+            (new_doc,
+             class_labels,
              removed_words,
              source_sentence,
              target_sentence,
              alignments) = line.split("\t")
+
+            if int(new_doc) == 1:
+                last_sentence = None
 
             sentence = Sentence(source_sentence,
                                 target_sentence,
@@ -48,6 +64,25 @@ def load_data(data_paths):
             yield sentence
 
 
+def oversample(oversample_from, current_class_distribution):
+    biggest_class, biggest_class_val = max(current_class_distribution.items(), key=lambda x: x[1])
+    n_to_sample = {cl: biggest_class_val - n_instances for cl, n_instances in current_class_distribution.items()}
+    after = current_class_distribution.copy()
+    for instance in oversample_from:
+        # if the class is in the instance, and n_to_sample is greater than 0:
+        for cl in instance.classes:
+            if n_to_sample[cl] > 0:
+                n_to_sample[cl] -= 1
+                after[cl] += 1
+                yield instance
+                break
+
+        if all(val <= 0 for cl, val in n_to_sample.items()):
+            raise StopIteration()
+    print("Before oversampling: {}".format(current_class_distribution))
+    print("After oversampling: {}".format(after))
+
+
 def load_configs():
     configs = import_module(sys.argv[1]).get_configs()
     return configs
@@ -57,8 +92,11 @@ def train_model(config):
     model_parameters = {x: config[x] for x in config['model'].model_parameters if x in config}
     model = config['model'](model_parameters)
     training_data = load_training_data(config)
-    development_data = load_development_data(config)
-    model.train(training_data, development_data)
+    if 'development_filepath' in config:
+        development_data = load_development_data(config)
+        model.train(training_data, development_data)
+    else:
+        model.train(training_data)
     return model
 
 
@@ -88,7 +126,7 @@ def output(predictions, sentences, class_labels, output_path):
             target_sentence = " ".join(sentence.target_sentence)
             alignments = " ".join(sentence.alignments)
             predicted = []
-            for _ in sentence.classes:
+            for _ in range(len(sentence.removed_words_target_indices)):
                 predicted.append(class_labels[next(pred_iter)])
             predicted = " ".join(predicted)
             instance_output = "{}\t{}\t{}\t{}\t{}".format(predicted, removed_words,
