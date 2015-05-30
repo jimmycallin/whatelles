@@ -1,0 +1,83 @@
+%
+% File acl2015.tex
+%
+% Contact: car@ir.hit.edu.cn, gdzhou@suda.edu.cn
+%%
+%% Based on the style files for ACL-2014, which were, in turn,
+%% Based on the style files for ACL-2013, which were, in turn,
+%% Based on the style files for ACL-2012, which were, in turn,
+%% based on the style files for ACL-2011, which were, in turn,
+%% based on the style files for ACL-2010, which were, in turn,
+%% based on the style files for ACL-IJCNLP-2009, which were, in turn,
+%% based on the style files for EACL-2009 and IJCNLP-2008...
+
+%% Based on the style files for EACL 2006 by
+%%e.agirre@ehu.es or Sergi.Balari@uab.es
+%% and that of ACL 08 by Joakim Nivre and Noah Smith
+
+\documentclass[11pt]{article}
+\usepackage{acl2015}
+\usepackage{times}
+\usepackage{url}
+\usepackage{latexsym}% -*- program: Value -*-
+
+%\setlength\titlebox{5cm}
+
+% You can expand the titlebox if you need extra space
+% to show all the authors. Please do not make the titlebox
+% smaller than 5cm (the original size); we will check this
+% in the camera-ready version and ask you to change it back.
+
+
+\title{Cross-Lingual Pronoun Prediction with Feed-Forward Neural Networks}
+
+\author{Jimmy Callin \\
+  Uppsala University \\
+  {\tt jimmy.callin@gmail.com}}
+
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+    We did some fun stuff. All is well.
+\end{abstract}
+
+
+\section{Introduction}
+
+When translating between languages, there are several discourse phenomena that are more difficult to translate than others.
+For instance, the act of translating pronouns usually requires insight into what is the antecedent of said pronoun, since gender of noun phrases rarely translate well between languages.
+While we have started to see a movement towards machine translation models that do not treat sentences in isolation, discourse oriented systems have yet to introduce performance improvements that would motivate ubiquotous usage.
+
+In light of this, there have previously been attempts at treating pronoun translation as a separate task from common sentence translation.
+By doing this, a pronoun translation module could potentially be treated as just another part of translation by discourse oriented machine translation systems, or as a post-processing step in systems where translations using larger contexts than sentence-level simply are not supported (such as Moses).
+DiscoMT 2015 introduces the shared task of cross-lingual pronoun translation.
+
+What is given is documents in a source language (English, in this case), a translation to a target language (French), as well as word alignments.
+The word alignments are automatically produced by GIZA++.
+What is missing, though, are third-person pronouns in the target translation.
+While English pronoun usage is relatively easy to infer from the immediate context, this is not the case in all languages.
+When translating to French, for instance, the translator requires to keep the immediate antecedent in mind for determining the use of male (\emph{elle}) or female (\emph{elles}) third-person pronoun.
+This is something you simply cannot infer from context alone.
+
+
+\section{Data}
+
+Several training resources were provided as a part of this task.
+Europarl, IWSLT, NCV9.
+Test data is a collection of transcribed TED talks, in total 12 documents containing 2093 sentences with a total of 1105 classification problems.
+
+
+\section{Method}
+
+While three separate training data collections were available, in the end only transcribed TED talks from the IWSLT collection were used.
+
+
+\section{Results}
+
+
+\bibliographystyle{acl}
+\bibliography{acl2015}
+
+\end{document}
