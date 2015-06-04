@@ -1968,12 +1968,35 @@
     <bcf:datasource type="file" datatype="bibtex">bibliography.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">Hardmeier2013Latent</bcf:citekey>
-    <bcf:citekey order="2">Lecun2012Efficient</bcf:citekey>
-    <bcf:citekey order="3">Glorot2010Understanding</bcf:citekey>
-    <bcf:citekey order="4">Glorot2010Understanding</bcf:citekey>
-    <bcf:citekey order="5">Bergstra2010Theano</bcf:citekey>
-    <bcf:citekey order="6">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="1">Hardmeier2010Modelling</bcf:citekey>
+    <bcf:citekey order="2">Hardmeier2010Modelling</bcf:citekey>
+    <bcf:citekey order="3">Mitkov1995Anaphora</bcf:citekey>
+    <bcf:citekey order="4">Hardmeier2010Modelling</bcf:citekey>
+    <bcf:citekey order="4">Mitkov1999Introduction</bcf:citekey>
+    <bcf:citekey order="5">Nagard2010Aiding</bcf:citekey>
+    <bcf:citekey order="6">Nagard2010Aiding</bcf:citekey>
+    <bcf:citekey order="7">Koehn2007Moses</bcf:citekey>
+    <bcf:citekey order="8">Guillou2012Improving</bcf:citekey>
+    <bcf:citekey order="9">Guillou2012Improving</bcf:citekey>
+    <bcf:citekey order="10">Hardmeier2010Modelling</bcf:citekey>
+    <bcf:citekey order="11">Hardmeier2010Modelling</bcf:citekey>
+    <bcf:citekey order="12">Hardmeier2011UppsalaFbk</bcf:citekey>
+    <bcf:citekey order="13">Guillou2012Improving</bcf:citekey>
+    <bcf:citekey order="14">Guillou2012Improving</bcf:citekey>
+    <bcf:citekey order="15">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="16">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="17">Broscheit2010Bart</bcf:citekey>
+    <bcf:citekey order="18">Hardmeier2014Discourse</bcf:citekey>
+    <bcf:citekey order="18">Hardmeier2013Docent</bcf:citekey>
+    <bcf:citekey order="19">Och2003Giza</bcf:citekey>
+    <bcf:citekey order="20">Koehn2005Europarl</bcf:citekey>
+    <bcf:citekey order="21">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="22">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="23">Lecun2012Efficient</bcf:citekey>
+    <bcf:citekey order="24">Glorot2010Understanding</bcf:citekey>
+    <bcf:citekey order="25">Glorot2010Understanding</bcf:citekey>
+    <bcf:citekey order="26">Bergstra2010Theano</bcf:citekey>
+    <bcf:citekey order="27">Hardmeier2013Latent</bcf:citekey>
   </bcf:section>
   <bcf:sortlist section="0" name="nyt" type="entry" sortscheme="nyt">
   <bcf:sorting>
