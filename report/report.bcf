@@ -1986,17 +1986,17 @@
     <bcf:citekey order="15">Hardmeier2013Latent</bcf:citekey>
     <bcf:citekey order="16">Hardmeier2013Latent</bcf:citekey>
     <bcf:citekey order="17">Broscheit2010Bart</bcf:citekey>
-    <bcf:citekey order="18">Hardmeier2014Discourse</bcf:citekey>
-    <bcf:citekey order="18">Hardmeier2013Docent</bcf:citekey>
-    <bcf:citekey order="19">Och2003Giza</bcf:citekey>
-    <bcf:citekey order="20">Koehn2005Europarl</bcf:citekey>
-    <bcf:citekey order="21">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="18">Hardmeier2014Discoursea</bcf:citekey>
+    <bcf:citekey order="19">Hardmeier2013Docent</bcf:citekey>
+    <bcf:citekey order="20">Och2003Giza</bcf:citekey>
+    <bcf:citekey order="21">Koehn2005Europarl</bcf:citekey>
     <bcf:citekey order="22">Hardmeier2013Latent</bcf:citekey>
-    <bcf:citekey order="23">Lecun2012Efficient</bcf:citekey>
-    <bcf:citekey order="24">Glorot2010Understanding</bcf:citekey>
+    <bcf:citekey order="23">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="24">Lecun2012Efficient</bcf:citekey>
     <bcf:citekey order="25">Glorot2010Understanding</bcf:citekey>
-    <bcf:citekey order="26">Bergstra2010Theano</bcf:citekey>
-    <bcf:citekey order="27">Hardmeier2013Latent</bcf:citekey>
+    <bcf:citekey order="26">Glorot2010Understanding</bcf:citekey>
+    <bcf:citekey order="27">Bergstra2010Theano</bcf:citekey>
+    <bcf:citekey order="28">Hardmeier2013Latent</bcf:citekey>
   </bcf:section>
   <bcf:sortlist section="0" name="nyt" type="entry" sortscheme="nyt">
   <bcf:sorting>

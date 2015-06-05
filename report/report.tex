@@ -104,7 +104,7 @@ Unfortunately they only produce minor improvements for English-German, and negat
 In light of this, there have been attempts at considering pronoun translation as a classification task separate from traditional machine translation.
 This could  could potentially lead to further insights into the nature of anaphora resolution.
 In this fashion a pronoun translation module could potentially be treated as just another part of translation by discourse oriented machine translation systems, or as a post-processing step similarly to \textcite{Guillou2012Improving}.
-\textcite{Hardmeier2013Latent} introduce this task and present a feed-forward neural network model using features from an external anaphora resolution system, BART (\cite{Broscheit2010Bart}), to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model is later integrated into their document-level decoder Docent (\cite{Hardmeier2014Discourse,Hardmeier2013Docent}).
+\textcite{Hardmeier2013Latent} introduce this task and present a feed-forward neural network model using features from an external anaphora resolution system, BART (\cite{Broscheit2010Bart}), to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model is later integrated into their document-level decoder Docent (\cite[chapter~9]{Hardmeier2014Discoursea}; \cite{Hardmeier2013Docent}).
 
 \section{Task setup}
 
@@ -272,11 +272,20 @@ Their recall, though, is significantly worse. The overall macro F1 score ends up
 Results indicate that the model performs on par with previously suggested models, while having a simpler architecture.
 Classes highly dependent on local context, such as \emph{ce}, perform especially well, which is likely due to \emph{est} being a good indicator for its presence.
 This is supported by the large performance gains from 4+0 to 4+1 in \cref{figure:winasym}, since \emph{est} usually follows \emph{ce}.
+% il      c'      if you ask for the happiness of the remembering self , it 's a completely different thing .     si vous réfléchissez sur le bonheur du " moi des souvenirs " , REPLACE est une toute autre histoire .
+Albeit, a succeeding \emph{est} is not a guarantee for the model, as shown in \emph{\_\_ est une toute autre histoire}, which it for some reason believe is a good place for \emph{il}.
 Singular and plural classes rarely get mixed up, probably due to its condition upon the English pronoun which marks \emph{it} or \emph{they}, making this prediction clear.
 The classes of feminine gender does not perform as well, especially not recall-wise, although this was to be expected since the only real information from which to infer its antecedent is distance from the pronoun in focus.
 It is apparent that the model has a bias towards making majority class predictions, especially given the low number of wrong predictions on the \emph{elle} and \emph{elles} classes relative to \emph{il} and \emph{ils}.
 The high recall of \emph{ils} is explained by this phenomenon as well.
 An additional hypothesis is that it is simply too little data to realistically create usable embeddings, except for in a few reoccurring circumstances.
+
+A somewhat interesting example of what POS tags might cause is:
+
+\emph{... which is the history of who invented games ... and they would be so immersed in playing the dice games ...} \\
+\emph{... l' histoire de qui a inventé le jeu et pourquoi ... \_\_ seraient si concentrés sur leur jeu de dés ...}
+
+This is one of the few instances where \emph{ils} has been misclassified as \emph{elles}. Since this classification only happens when you use at least three preceding POS tags, it is likely there is something happening with the antecedent candidates. The third determiner is \emph{the (history)}, and points to \emph{histoire} which is a noun of feminine gender. It is likely the classifier has learned this connection and has put too much weight into it.
 
 The extra number of features as well as the increase in embedding dimensionality makes the training and prediction somewhat slower, but since the training still is done in less than an hour, and predicting the test data does not take more than a few seconds, it is still good enough for general usage.
 Furthermore, the implementation is made in such a way that further performance increases are to be expected if you run it on CUDA compatible GPU with minor changes.
