@@ -19,18 +19,12 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{acl2015}
-\usepackage[backend=biber,
-            style=authoryear-icomp,
-            doi=false,
-            isbn=false,
-            url=false,
-            maxcitenames=1]{biblatex}
 \usepackage{times}
 \usepackage{url}
 \usepackage{latexsym}% -*- program: Value -*-
 \usepackage{graphicx}
 \usepackage[colorlinks=false, pdfborder={0 0 0}]{hyperref}
-\usepackage[noabbrev, nameinlink]{cleveref}
+\usepackage[nameinlink]{cleveref}
 \usepackage{booktabs}
 \usepackage{adjustbox}
 \usepackage{pgfplots}
@@ -38,7 +32,6 @@
 
 \def\labelitemi{--}
 
-\addbibresource{bibliography.bib}
 %\setlength\titlebox{5cm}
 
 % You can expand the titlebox if you need extra space
@@ -52,26 +45,25 @@
 \author{Jimmy Callin, Christian Hardmeier, Jörg Tiedemann \\
   Department of Linguistics and Philology \\
   Uppsala University, Sweden \\
-  {\tt jimmy.callin.3439@student.uu.se} \\ {\tt \{christian.hardmeier, jorg.tiedemann\}@lingfil.uu.se}}
+  {\tt \normalsize jimmy.callin.3439@student.uu.se} \\ {\tt \normalsize \{christian.hardmeier, jorg.tiedemann\}@lingfil.uu.se}}
 
 \date{}
 
 \begin{document}
 \maketitle
 \begin{abstract}
-    For some language pairs, pronoun translation is a discourse driven task. For cross-lingual pronoun prediction, we suggest a neural network based model using preceding nouns and determiners as features for suggesting antecedent candidates. Our model scores on par with similar models while having a simpler architecture.
+    For some language pairs, pronoun translation is a discourse-driven task which requires information that lies beyond its local context. This sets up the task of trying to predict the correct pronoun given a source sentence and a target translation, where the translated pronouns have been replaced with placeholders. For cross-lingual pronoun prediction, we suggest a neural network-based model using preceding nouns and determiners as features for suggesting antecedent candidates. Our model scores on par with similar models while having a simpler architecture.
 \end{abstract}
 
 
 \section{Introduction}
 
-Translation requires context.
-Most modern statistical machine translation (SMT) systems do use context for translation; the meaning of a word is more often than not ambiguous, and can only be decoded through its usage.
-That said, context in modern SMT still mostly assumes that sentences are independent of one another, and dependencies between sentences are simply ignored.
-While today's popular SMT systems could and in some cases do use source language features from previous sentences, previously translated sentences within a document has up to this point rarely been included.
-\textcite{Hardmeier2010Modelling} argue that SMT research has become mature enough to stop assuming sentence independence, and start to incorporate features beyond the sentence boundary.
-They demonstrate the difficulty of correctly determining the German pronoun given English as source language.
-While translating pronouns indeed can be unproblematic for certain language pairs, languages with gender-marked pronouns introduce certain difficulties, since the choice of pronoun is determined upon the gender of its antecedent.
+Most modern statistical machine translation (SMT) systems use context for translation; the meaning of a word is more often than not ambiguous, and can only be decoded through its usage.
+That said, context use in modern SMT still mostly assumes that sentences are independent of one another, and dependencies between sentences are simply ignored.
+While today's popular SMT systems could use features from previous sentences in the source text, translated sentences within a document have up to this point rarely been included.
+
+Hardmeier~and~Frederico~\shortcite{Hardmeier2010Modelling} argue that SMT research has become mature enough to stop assuming sentence independence, and start to incorporate features beyond the sentence boundary.
+Languages with gender-marked pronouns introduce certain difficulties, since the choice of pronoun is determined upon the gender of its antecedent.
 Picking the wrong third-person pronoun might seem like a relatively minor error, especially if present in an otherwise comprehensible translation, but could potentially produce misunderstandings. Take the following English sentences:
 
 \begin{itemize}
@@ -81,88 +73,80 @@ Picking the wrong third-person pronoun might seem like a relatively minor error,
     \item The monkey ate the banana because \emph{it} was tea-time.
 \end{itemize}
 
-\emph{It} in each of these three cases reference something different, either the monkey, the banana, or the abstract notion of time. If we were to translate these sentences to German, we would have to consciously make decisions whether \emph{it} should be in masculine (\emph{der}, referring to the monkey), feminine (\emph{die}, referring to the banana), or neuter (\emph{das}, referring to the time) (\cite{Mitkov1995Anaphora}). While these examples use a local dependency, the antecedent of \emph{it} could just as easily have been one or several sentences away which would have made necessary translation features out of reach for sentence based SMT decoders.
+\emph{It} in each of these three cases reference something different, either the monkey, the banana, or the abstract notion of time. If we were to translate these sentences to German, we would have to consciously make decisions whether \emph{it} should be in masculine (\emph{er}, referring to the monkey), feminine (\emph{sie}, referring to the banana), or neuter (\emph{es}, referring to the time) \cite{Mitkov1995Anaphora}. While these examples use a local dependency, the antecedent of \emph{it} could just as easily have been one or several sentences away which would have made necessary translation features out of reach for sentence based SMT decoders.
 
 
 \section{Related work}
 
 
-Most of the work in anaphora resolution for machine translation has been done in the paradigm of rule-based MT, while the topic has gained little interest within SMT (\cite{Hardmeier2010Modelling, Mitkov1999Introduction}).
-One of the first examples of using discourse analysis for pronoun translation in SMT was done by \textcite{Nagard2010Aiding}, where they use co-reference resolution to predict the antecedents in the source language as features in a standard SMT system.
-While they saw score improvements in pronoun prediction, the bad performance of the co-reference resolution seriously impacts the results negatively.
-They implement this in a two-step solution by running the co-reference resolver separately from the SMT decoder, and thereafter annotate the translated French pronouns with gender and quantity based on their predicted antecedent. The sentence is then once again translated using another MT system where phrase tables have been annotated in the same fashion.
-This seems to be mostly for practical reasons, since most popular SMT frameworks such as Moses do not provide previous target translations for use as features (\cite{Koehn2007Moses}).
-\textcite{Guillou2012Improving} tries a similar approach for English-Czech translation with little improvement even after factoring out major sources of error. They single out one possible reason for this, which is how a reasonable translation alternative of a pronoun's antecedent could affect the predicted pronoun, including the possibility of simply canceling out pronouns. E.g, \emph{the u.s. , claiming some success in its trade} could be paraphrased as \emph{the u.s. , claiming some success in trade diplomacy} without any loss in translation quality, while still affecting the score negatively.
-
-In reality, there is necessary linguistic information in the target translation that simply is not available in the source.
-An English antecedent might in most cases get translated to a word with male gender, which is learned by the decoder.
-This means that in cases where the antecedent produce an alternative translation with a non-male gender, the decoder has no information available to condition upon this.
-It could potentially be possible to include a larger source context window around the source antecedent in hope of encoding contexts where alternative translations are made, but in our opinion this would likely only increase data sparseness and overall be a non-optimal solution.
-Rather, you would like to have the translated antecedent available at decoding, which would mean that the SMT decoder in contrast to most decoders today should be able to handle dependencies across sentence boundaries.
-\textcite{Hardmeier2010Modelling} extends the phrase-based Moses decoder with a word dependency model based on existing co-reference resolution systems, by parsing the output of the decoder and catching its previous translations.
-Unfortunately they only produce minor improvements for English-German, and negative results for English-French (\cite{Hardmeier2011UppsalaFbk}).
+Most of the work in anaphora resolution for machine translation has been done in the paradigm of rule-based MT, while the topic has gained little interest within SMT \cite{Hardmeier2010Modelling,Mitkov1999Introduction}.
+One of the first examples of using discourse analysis for pronoun translation in SMT was done by Nagard~and~Koehn~\shortcite{Nagard2010Aiding}, who use co-reference resolution to predict the antecedents in the source language as features in a standard SMT system.
+While they saw score improvements in pronoun prediction, they claim the bad performance of the co-reference resolution seriously impacted the results negatively.
+They performed this as a post-processing step, which seems to be primarily for practical reasons since most popular SMT frameworks such as Moses \cite{Koehn2007Moses} do not provide previous target translations for use as features.
+Guillou~et~al.~\shortcite{Guillou2012Improving} tried a similar approach for English-Czech translation with little improvement even after factoring out major sources of error. They singled out one possible reason for this, which is how a reasonable translation alternative of a pronoun's antecedent could affect the predicted pronoun, including the possibility of simply canceling out pronouns. E.g, \emph{the u.s. , claiming some success in its trade} could be paraphrased as \emph{the u.s. , claiming some success in trade diplomacy} without any loss in translation quality, while still affecting the score negatively.
+This demonstrates there is necessary linguistic information in the target translation that simply is not available in the source.
+Hardmeier~and~Frederico~\shortcite{Hardmeier2010Modelling} extended the phrase-based Moses decoder with a word dependency model based on existing co-reference resolution systems, by parsing the output of the decoder and catching its previous translations.
+Unfortunately they only produced minor improvements for English-German.
 
 In light of this, there have been attempts at considering pronoun translation a classification task separate from traditional machine translation.
 This could potentially lead to further insights into the nature of anaphora resolution.
-In this fashion a pronoun translation module could potentially be treated as just another part of translation by discourse oriented machine translation systems, or as a post-processing step similarly to \textcite{Guillou2012Improving}.
-\textcite{Hardmeier2013Latent} introduce this task and present a feed-forward neural network model using features from an external anaphora resolution system, BART (\cite{Broscheit2010Bart}), to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model is later integrated into their document-level decoder Docent (\cite[chapter~9]{Hardmeier2014Discoursea}; \cite{Hardmeier2013Docent}).
+In this fashion a pronoun translation module could be treated as just another part of translation by discourse oriented machine translation systems, or as a post-processing step similarly to Guillou~et~al.~\shortcite{Guillou2012Improving}.
+Hardmeier~et~al.~\shortcite{Hardmeier2013Latent} introduced this task and presented a feed-forward neural network model using features from an external anaphora resolution system, BART \cite{Broscheit2010Bart}, to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model was later integrated into their document-level decoder Docent \cite[chapter~9]{Hardmeier2013Docent,Hardmeier2014Discourse}.
 
 \section{Task setup}
 
-The goal of this task is to accurately predict the correct pronoun in a French translation.
-The pronouns in focus are \emph{it} and \emph{they}, where the word aligned phrases in the French translation have been replaced by placeholders.
-The word alignment is included, and was automatically produced by GIZA++ (\cite{Och2003Giza}).
+The goal of cross-lingual pronoun prediction is to accurately predict the correct missing pronoun in translated text.
+The pronouns in focus are \emph{it} and \emph{they}, where the word aligned phrases in the translation have been replaced by placeholders.
+The word alignment is included, and was automatically produced by GIZA++ \cite{Och2003Giza}.
 We are also aware of document boundaries within the corpus.
-The corpus is a set of three different parallel corpora gathered from three separate domains:
-transcribed TED talks, Europarl (\cite{Koehn2005Europarl}) with transcribed proceedings from the European parliament, and a set of news text.
+The corpus is a set of three different English-French parallel corpora gathered from three separate domains:
+transcribed TED talks, Europarl \cite{Koehn2005Europarl} with transcribed proceedings from the European parliament, and a set of news text.
 Test data is a collection of transcribed TED talks, in total 12 documents containing 2093 sentences with a total of 1105 classification problems, with a similar development set.
 
-\section{Method}
-
-Inspired by the neural network architecture set up in \textcite{Hardmeier2013Latent}, we similarly propose a feed-forward neural network with a layer of word embeddings as well as an additional hidden layer for learning abstract feature representations.
-The model is trained using stochastic gradient descent with mini-batches and L2 regularization.
-Cross-entropy is used as a cost function, with a softmax output layer.
-The main difference in our model lies in avoiding using antecedent features as gathered by an external anaphora resolution system.
-Rather, to simplify the model we try to simply look at the four closest previous nouns and determiners in English, and use the corresponding aligned French nouns and articles in the model, as illustrated in \cref{fig:posexample}.
-Wherever the alignments map to more than one word, only the left-most word in the phrase is used.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{figures/posexample.pdf}
-    \caption{An English POS tagger is used to find nouns and articles in preceding utterances, while the word alignments determine which French words are to be used as features.}
-    \label{fig:posexample}
-\end{figure}
-
-
-Additionally, we allow ourselves to look at the French context of the missing pronoun.
-While the automatically translated context might be too unreliable, French usage should be a better indicator for some of the classes, e.g. \emph{ce} which is highly dependent being precedent of \emph{est}.
-See \cref{fig:contextexample} for an example of context in source and translation as features.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\columnwidth]{figures/contextexample.pdf}
-    \caption{Example of context used in the classification model, color coded according to their position in the neural network as illustrated in \cref{fig:nnarchitecture}.}
-    \label{fig:contextexample}
-\end{figure}
-
-Furthermore the dimensionality of the embeddings are increased from 20 to 50, since this is empirically shown to somewhat improve the scores on the development set, with a hidden layer size of 50.
-To reduce training time and faster find convergence, we use $\tanh$ as activation function between the hidden layers, in contrast to the sigmoid function in Hardmeier's model (\cite{Lecun2012Efficient}).
-To avoid overfitting, early stopping is introduced where the training stops if no improvements have been found within a number of iterations.
-This usually results in a training time of 130 epochs, when run on TED data.
-
-The model uses a uniform random weight initialization as proposed by \textcite{Glorot2010Understanding}, where they show that neural network models using $\tanh$ as activation function generally perform better with an initialization within the interval $uniform[-\frac{\sqrt{6}}{\sqrt{fan_{in}+fan_{out}}},\frac{\sqrt{6}}{\sqrt{fan_{in}+fan_{out}}}]$, where $fan_{in}$ and $fan_{out}$ are number of inputs and number of hidden units respectively.
-
-Since the model uses a fixed context window size for English and French, as well as a fixed number of preceding nouns and articles, we need to find out the optimal parameter settings. We empirically find that a parameter setting of 4+4 context window for English and French, with 3 preceding nouns and articles each perform well. \Cref{figure:parametervary} showcases how window size and number of preceding POS tags affect the performance outcome on the development set. We also looked into asymmetric window sizes, but as demonstrated in \cref{figure:winasym} we noticed no improvements.
-
-The final architecture as shown in \cref{fig:nnarchitecture} is implemented in Theano (\cite{Bergstra2010Theano}), and is publicly available on Github.\footnote{\url{http://github.com/jimmycallin/whatelles}}
-
-\begin{figure*}[htbp]
+\begin{figure*}[tbp]
     \centering
     \includegraphics[width=\columnwidth]{figures/nnarchitecture.pdf}
     \caption{Neural network architecture. Blue embeddings (E) signifies source context, red target context, and yellow the preceding POS tags. The shown number of features is not equivalent with what is used in the final model.}
     \label{fig:nnarchitecture}
 \end{figure*}
 
+\section{Method}
+
+Inspired by the neural network architecture set up in Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, we similarly propose a feed-forward neural network with a layer of word embeddings as well as an additional hidden layer for learning abstract feature representations.
+The final architecture as shown in \cref{fig:nnarchitecture} uses both source context and translation context around the missing pronoun, by encoding a number of word embeddings $n$ words to the left and $m$ words to the right (hereby referred to as having a context window size of $n$+$m$).
+
+The main difference in our model lies in avoiding using an external anaphora resolution system to collect antecedent features.
+Rather, to simplify the model we try to simply look at the four closest previous nouns and determiners in English, and use the corresponding aligned French nouns and articles in the model, as illustrated in \cref{fig:posexample}.
+Wherever the alignments map to more than one word, only the left-most word in the phrase is used.
+We encode these nouns and articles as embeddings in the first input layer. This way, the order of each word is embedded which should approximate the distance from the missing pronoun.
+Additionally, we allow ourselves to look at the French context of the missing pronoun.
+While the automatically translated context might be too unreliable, French usage should be a better indicator for some of the classes, e.g. \emph{ce} which is highly dependent being precedent of \emph{est}.
+See \cref{fig:contextexample} for an example of context in source and translation as features.
+
+Similarly to the original model in Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, the neural network is trained using stochastic gradient descent with mini-batches and L2 regularization.
+Cross-entropy is used as a cost function, with a softmax output layer.
+Furthermore the dimensionality of the embeddings is increased from 20 to 50, since we saw minor improvements of the scores on the development set, with a hidden layer size of 50.
+To reduce training time and speed up convergence, we use $\tanh$ as activation function between the hidden layers \cite{Lecun2012Efficient}, in contrast to the sigmoid function in Hardmeier's model.
+To avoid overfitting, early stopping is introduced where the training stops if no improvements have been found within a number of iterations.
+This usually results in a training time of 130 epochs, when run on TED data.
+The model uses a layer-wise uniform random weight initialization as proposed by Glorot~and~Bengio~\shortcite{Glorot2010Understanding}, where they show that neural network models using $\tanh$ as activation function generally perform better with a uniformally distributed random initialization within the interval $[-\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}},\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}}]$, where $\mbox{fan}_{in}$ and $\mbox{fan}_{out}$ are number of inputs and number of hidden units respectively.
+
+Since the model uses a fixed context window size for English and French, as well as a fixed number of preceding nouns and articles, we need to find out optimal parameter settings. We observe that a parameter setting of 4+4 context window for English and French, with 3 preceding nouns and articles each perform well. \Cref{figure:parametervary} showcases how window size and number of preceding POS tags affect the performance outcome on the development set. We also looked into asymmetric window sizes, but noticed no improvements (\cref{figure:winasym}).
+The neural network is implemented in Theano \cite{Bergstra2010Theano}, and is publicly available on Github.\footnote{\url{http://github.com/jimmycallin/whatelles}}
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/posexample.pdf}
+    \caption{An English POS tagger is used to find nouns and articles in preceding utterances, while the word alignments determine which French words are to be used as features.}
+    \label{fig:posexample}
+\end{figure}
+
+\begin{figure}[tbp]
+    \centering
+    \includegraphics[width=\columnwidth]{figures/contextexample.pdf}
+    \caption{Example of context used in the classification model, color coded according to their position in the neural network as illustrated in \cref{fig:nnarchitecture}.}
+    \label{fig:contextexample}
+\end{figure}
 
 \begin{figure}[t]
     \begin{tikzpicture}
@@ -227,8 +211,8 @@ The final architecture as shown in \cref{fig:nnarchitecture} is implemented in T
 \section{Results}
 
 The results from the shared task are presented in \cref{tbl:resultscores} and \cref{tbl:confmatrix}.
-Best performing classes are \emph{ce}, \emph{ils}, and \emph{other}, while the less commonly occurring classes \emph{elle} and \emph{elles} have precision comparable to other classes.
-Their recall, though, is significantly worse. The overall macro F1 score ends up being 55.3\%.
+The best performing classes are \emph{ce}, \emph{ils}, and \emph{other}, all reaching F1 scores over 80 percent. The less commonly occurring classes \emph{elle} and \emph{elles} perform significantly worse, especially recall-wise.
+The overall macro F1 score ends up being 55.3\%.
 
 \begin{table}[t]
 \centering
@@ -270,25 +254,24 @@ Their recall, though, is significantly worse. The overall macro F1 score ends up
 
 \section{Discussion}
 
-Results indicate that the model performs on par with previously suggested models, while having a simpler architecture.
-Classes highly dependent on local context, such as \emph{ce}, perform especially well, which is likely due to \emph{est} being a good indicator for its presence.
+Results indicate that the model performs on par with previously suggested models \cite{Hardmeier2013Latent}, while having a simpler architecture.
+Classes highly dependent on local context, such as \emph{ce}, perform especially well, which is likely due to \emph{est} being a good indicator of its presence.
 This is supported by the large performance gains from 4+0 to 4+1 in \cref{figure:winasym}, since \emph{est} usually follows \emph{ce}.
 % il      c'      if you ask for the happiness of the remembering self , it 's a completely different thing .     si vous réfléchissez sur le bonheur du " moi des souvenirs " , REPLACE est une toute autre histoire .
-Albeit, a succeeding \emph{est} is not a guarantee for the model to correctly predict its pronoun, as shown in \emph{\_\_ est une toute autre histoire}, where the model wrongly proposes \emph{il} .
-Singular and plural classes rarely get mixed up, probably due to its condition upon the English pronoun which marks \emph{it} or \emph{they}, making this prediction clear.
-The classes of feminine gender does not perform as well, especially not recall-wise, although this was to be expected since the only real information from which to infer its antecedent is distance from the pronoun in focus.
+Singular and plural classes rarely get confused, due to them being predicated on the English pronoun which marks \emph{it} or \emph{they}.
+The classes of feminine gender does not perform as well, especially recall-wise, although this was to be expected since the only information from which to infer its antecedent is ordered distance from the pronoun in focus.
 It is apparent that the model has a bias towards making majority class predictions, especially given the low number of wrong predictions on the \emph{elle} and \emph{elles} classes relative to \emph{il} and \emph{ils}.
 The high recall of \emph{ils} is explained by this phenomenon as well.
-An additional hypothesis is that it is simply too little data to realistically create usable embeddings, except for in a few reoccurring circumstances.
+An additional hypothesis is that there is simply too little data to realistically create usable embeddings, except for a few reoccurring circumstances.
 
 A somewhat interesting example of what POS tags might cause is:
 
 \emph{... which is the history of who invented games ... and they would be so immersed in playing the dice games ...} \\
 \emph{... l' histoire de qui a inventé le jeu et pourquoi ... \_\_ seraient si concentrés sur leur jeu de dés ...}
 
-This is one of the few instances where \emph{ils} has been misclassified as \emph{elles}. Since this classification only happens when you use at least three preceding POS tags, it is likely there is something happening with the antecedent candidates. The third determiner is \emph{the (history)}, and points to \emph{histoire} which is a noun of feminine gender. It is likely the classifier has learned this connection and has put too much weight into it.
+This is one of the few instances where \emph{ils} has been misclassified as \emph{elles}. Since this classification only happens when using at least three preceding POS tags, it is likely there is something happening with the antecedent candidates. The third determiner is \emph{the (history)}, and points to \emph{histoire} which is a noun of feminine gender. It is likely the classifier has learned this connection and has put too much weight into it.
 
-The extra number of features as well as the increase in embedding dimensionality makes the training and prediction somewhat slower, but since the training still is done in less than an hour, and predicting the test data does not take more than a few seconds, it is still good enough for general usage.
+The extra number of features as well as the increase in embedding dimensionality makes the training and prediction slightly slower, but since the training still is done in less than an hour, and testing does not take longer than a few seconds, it is still good enough for general usage.
 Furthermore, the implementation is made in such a way that further performance increases are to be expected if you run it on CUDA compatible GPU with minor changes.
 
 While three separate training data collections were available, we only found interesting results when using data from the same domain as the test data, i.e. transcribed TED talks.
@@ -296,22 +279,26 @@ To overcome the skew class distribution, attempts were made at oversampling the 
 The model does not seem to generalize well from other types of training data such as Europarl or news text, despite Europarl being transcribed speech as well.
 This is an obvious shortcoming of the model.
 
-We tried several alterations in parameter settings for context window and POS tags, and there were no significant improvements found beyond the final parameter settings when run on the development set, as seen in \cref{figure:parametervary}.
+We tried several alterations in parameter settings for context window and POS tags, and found no significant improvements beyond the final parameter settings when run on the development set, as seen in \cref{figure:parametervary}.
 \Cref{figure:winasym} makes it clear that a symmetric window size is beneficial, while we are not as sure of why this is the case.
-It does seem like right context is more important than left context, which could be due to pronouns in their role as subjects largely appears early in sentences, making left context nothing but sentence start markers.
-In future work, it would be interesting to look into how much source context actually contribute to the classification, given a target context.
-The English context is indeed nice to have, since you cannot be entirely certain of the translation quality in the target language, but intuitively all necessary linguistic information should only be available in the target language.
-If source language were to be used, each English word embedding could perhaps be pre-trained on a large number of translation examples hopefully learning the most probable cross-linguistic gender.
-Gender aware French word embeddings would hypothetically increase the score as well, if not more.
+Right context seems to be more important than left context, which could be due to the fact that pronouns in their role as subjects largely appears early in sentences, making left context nothing but sentence start markers.
+
+In future work, it would be interesting to look into how much source context actually contributes to the classification, given a target context.
+While the English context is nice to have, since you cannot be entirely certain of the translation quality in the target language, intuitively all necessary linguistic information for inferring the correct pronoun should be available in the target translation.
+After all, the gender of a pronoun is not dependent on whatever source language you translate from, as long as you have found its antecedent.
+If the source text still were found useful, all English word embeddings could be pre-trained on a large number of translation examples and through this process learn the most probable cross-linguistic gender.
+In the same manner, gender aware French word embeddings would hypothetically increase the score as well.
 
 \section{Conclusion}
 
 In this work, we develop a cross-lingual pronoun prediction classifier based on a feed-forward neural network.
-The model is heavily inspired by (\cite{Hardmeier2013Latent}), while trying to simplify the architecture by simply using preceding nouns and determiners for coreference resolution rather than using features from an anaphora extractor such as BART, as set up in the original paper, since these usually includes large performance overhead.
+The model is heavily inspired by Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, while trying to simplify the architecture by simply using preceding nouns and determiners for coreference resolution rather than using features from an anaphora extractor such as BART, as in the original paper, since this causes large performance overhead.
 
-We find out that the model indeed perform on par with similar models, while being easier to train.
+We find out that the model indeed performs on par with similar models, while being easier to train.
 There are some expected drops in performance for the less common classes heavily dependent on finding the correct anecedent.
 We discuss probable causes for this, as well as possible solutions using pretrained embeddings on larger amounts of training data.
 
-\printbibliography
+\bibliographystyle{acl}
+\bibliography{bibliography}
+
 \end{document}
