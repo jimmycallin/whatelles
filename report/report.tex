@@ -52,7 +52,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-    For some language pairs, pronoun translation is a discourse-driven task which requires information that lies beyond its local context. This sets up the task of trying to predict the correct pronoun given a source sentence and a target translation, where the translated pronouns have been replaced with placeholders. For cross-lingual pronoun prediction, we suggest a neural network-based model using preceding nouns and determiners as features for suggesting antecedent candidates. Our model scores on par with similar models while having a simpler architecture.
+    For some language pairs, pronoun translation is a discourse-driven task which requires information that lies beyond its local context. This motivates the task of predicting the correct pronoun given a source sentence and a target translation, where the translated pronouns have been replaced with placeholders. For cross-lingual pronoun prediction, we suggest a neural network-based model using preceding nouns and determiners as features for suggesting antecedent candidates. Our model scores on par with similar models while having a simpler architecture.
 \end{abstract}
 
 
@@ -63,7 +63,7 @@ That said, context use in modern SMT still mostly assumes that sentences are ind
 While today's popular SMT systems could use features from previous sentences in the source text, translated sentences within a document have up to this point rarely been included.
 
 Hardmeier~and~Frederico~\shortcite{Hardmeier2010Modelling} argue that SMT research has become mature enough to stop assuming sentence independence, and start to incorporate features beyond the sentence boundary.
-Languages with gender-marked pronouns introduce certain difficulties, since the choice of pronoun is determined upon the gender of its antecedent.
+Languages with gender-marked pronouns introduce certain difficulties, since the choice of pronoun is determined by the gender of its antecedent.
 Picking the wrong third-person pronoun might seem like a relatively minor error, especially if present in an otherwise comprehensible translation, but could potentially produce misunderstandings. Take the following English sentences:
 
 \begin{itemize}
@@ -91,7 +91,7 @@ Unfortunately they only produced minor improvements for English-German.
 In light of this, there have been attempts at considering pronoun translation a classification task separate from traditional machine translation.
 This could potentially lead to further insights into the nature of anaphora resolution.
 In this fashion a pronoun translation module could be treated as just another part of translation by discourse oriented machine translation systems, or as a post-processing step similarly to Guillou~et~al.~\shortcite{Guillou2012Improving}.
-Hardmeier~et~al.~\shortcite{Hardmeier2013Latent} introduced this task and presented a feed-forward neural network model using features from an external anaphora resolution system, BART \cite{Broscheit2010Bart}, to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model was later integrated into their document-level decoder Docent \cite[chapter~9]{Hardmeier2013Docent,Hardmeier2014Discourse}.
+Hardmeier~et~al.~\shortcite{Hardmeier2013Latent} introduced this task and presented a feed-forward neural network model using features from an external anaphora resolution system, BART \cite{Broscheit2010Bart}, to infer the pronoun's antecedent candidates and use the aligned words in the target translation as input. This model was later integrated into their document-level decoder Docent \cite[chapter~9]{Hardmeier2013Docent,Hardmeier2014Discoursea}.
 
 \section{Task setup}
 
@@ -116,7 +116,7 @@ Inspired by the neural network architecture set up in Hardmeier~et~al.~\shortcit
 The final architecture as shown in \cref{fig:nnarchitecture} uses both source context and translation context around the missing pronoun, by encoding a number of word embeddings $n$ words to the left and $m$ words to the right (hereby referred to as having a context window size of $n$+$m$).
 
 The main difference in our model lies in avoiding using an external anaphora resolution system to collect antecedent features.
-Rather, to simplify the model we try to simply look at the four closest previous nouns and determiners in English, and use the corresponding aligned French nouns and articles in the model, as illustrated in \cref{fig:posexample}.
+Rather, to simplify the model we simply look at the four closest previous nouns and determiners in English, and use the corresponding aligned French nouns and articles in the model, as illustrated in \cref{fig:posexample}.
 Wherever the alignments map to more than one word, only the left-most word in the phrase is used.
 We encode these nouns and articles as embeddings in the first input layer. This way, the order of each word is embedded which should approximate the distance from the missing pronoun.
 Additionally, we allow ourselves to look at the French context of the missing pronoun.
@@ -126,8 +126,8 @@ See \cref{fig:contextexample} for an example of context in source and translatio
 Similarly to the original model in Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, the neural network is trained using stochastic gradient descent with mini-batches and L2 regularization.
 Cross-entropy is used as a cost function, with a softmax output layer.
 Furthermore the dimensionality of the embeddings is increased from 20 to 50, since we saw minor improvements of the scores on the development set, with a hidden layer size of 50.
-To reduce training time and speed up convergence, we use $\tanh$ as activation function between the hidden layers \cite{Lecun2012Efficient}, in contrast to the sigmoid function in Hardmeier's model.
-To avoid overfitting, early stopping is introduced where the training stops if no improvements have been found within a number of iterations.
+To reduce training time and speed up convergence, we use $\tanh$ as activation function between the hidden layers \cite{Lecun2012Efficient}, in contrast to the sigmoid function used in Hardmeier's model.
+To avoid overfitting, early stopping is introduced where the training stops if no improvements have been found within a certain number of iterations.
 This usually results in a training time of 130 epochs, when run on TED data.
 The model uses a layer-wise uniform random weight initialization as proposed by Glorot~and~Bengio~\shortcite{Glorot2010Understanding}, where they show that neural network models using $\tanh$ as activation function generally perform better with a uniformally distributed random initialization within the interval $[-\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}},\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}}]$, where $\mbox{fan}_{in}$ and $\mbox{fan}_{out}$ are number of inputs and number of hidden units respectively.
 
@@ -259,7 +259,7 @@ Classes highly dependent on local context, such as \emph{ce}, perform especially
 This is supported by the large performance gains from 4+0 to 4+1 in \cref{figure:winasym}, since \emph{est} usually follows \emph{ce}.
 % il      c'      if you ask for the happiness of the remembering self , it 's a completely different thing .     si vous réfléchissez sur le bonheur du " moi des souvenirs " , REPLACE est une toute autre histoire .
 Singular and plural classes rarely get confused, due to them being predicated on the English pronoun which marks \emph{it} or \emph{they}.
-The classes of feminine gender does not perform as well, especially recall-wise, although this was to be expected since the only information from which to infer its antecedent is ordered distance from the pronoun in focus.
+The classes of feminine gender does not perform as well, especially recall-wise, but this was to be expected since the only information from which to infer its antecedent is ordered distance from the pronoun in focus.
 It is apparent that the model has a bias towards making majority class predictions, especially given the low number of wrong predictions on the \emph{elle} and \emph{elles} classes relative to \emph{il} and \emph{ils}.
 The high recall of \emph{ils} is explained by this phenomenon as well.
 An additional hypothesis is that there is simply too little data to realistically create usable embeddings, except for a few reoccurring circumstances.
