@@ -5,6 +5,17 @@ from textblob.en import parser
 
 class Sentence():
 
+    """
+    A sentence representation. This contains the following features:
+    - Source language sentence.
+    - Target language sentence.
+    - Classes.
+    - Word alignments.
+    - Pointer to preceding sentence, if there is one.
+    - What words are removed.
+    - Preceding POS tags.
+    """
+
     def __init__(self, source_sentence, target_sentence,
                  alignments=None, classes=None, removed_words=None, prev_sentence=None):
         self.source_sentence = tokenize(source_sentence)
