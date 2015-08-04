@@ -5,7 +5,7 @@ This evaluates how the number of preceding POS tags affects the evaluation resul
 from config import base
 import evaluate as e
 
-config = base.get_configs()[0]
+config = base.get_config()
 config['test_filepath'] = 'resources/test/teddev/data-with-doc.csv'
 
 n_tags = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
