@@ -1,5 +1,5 @@
 # whatelles
-Repository for the cross-lingual pronoun classification task, a part of the Master's course in Machine Translation at Uppsala University. This was sent in to the shared task in cross-lingual pronoun classification as set up in the EMNLP 2015 Workshop on Discourse in Machine Translation, (DiscoMT)[https://www.idiap.ch/workshop/DiscoMT]. Please read [the paper](https://raw.githubusercontent.com/jimmycallin/whatelles/master/report/report.pdf) for a more detailed explanation.
+Repository for the cross-lingual pronoun classification task, a part of the Master's course in Machine Translation at Uppsala University. This was sent in to the shared task in cross-lingual pronoun classification as set up in the EMNLP 2015 Workshop on Discourse in Machine Translation, [DiscoMT](https://www.idiap.ch/workshop/DiscoMT). Please read [the paper](https://raw.githubusercontent.com/jimmycallin/whatelles/master/report/report.pdf) for a more detailed explanation.
 
 ## Dependencies
 This project depends upon:
