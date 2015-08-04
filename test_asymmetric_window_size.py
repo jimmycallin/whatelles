@@ -5,7 +5,7 @@ This tests how assymetric window sizes affects the evaluation results on the dev
 from config import base
 import evaluate as e
 
-config = base.get_configs()[0]
+config = base.get_config()
 config['test_filepath'] = 'resources/test/teddev/data-with-doc.csv'
 
 window_sizes = [(4, 0), (4, 1), (4, 2), (4, 3), (3, 4), (2, 4), (1, 4), (0, 4)]

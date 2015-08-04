@@ -5,7 +5,7 @@ This evaluates how a differing symmetric window size affects the evaluation resu
 from config import base
 import evaluate as e
 
-config = base.get_configs()
+config = base.get_config()
 config['test_filepath'] = 'resources/test/teddev/data-with-doc.csv'
 
 window_sizes = [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5), (6, 6), (7, 7), (8, 8), (9, 9), (10, 10)]
