@@ -1,4 +1,5 @@
 resources/train/europarl/
+resources/train/europarl_small/
 baseline/corpus.5.fr.trie.kenlm
 mmax/
 bart/
@@ -30,6 +31,8 @@ bart_features/
 *.mtc1
 *.out
 *.synctex.gz
+*.fdb_latexmk
+*.fls
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
