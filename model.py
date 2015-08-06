@@ -257,7 +257,10 @@ class NNPrediction():
                         "classes": "The training output classes.",
                         "n_hiddens": "List of hidden layers with each layers dimensionality.",
                         "window_size": "A tuple of number of words to left and right to condition upon.",
-                        "n_tags": "Number of previous POS tags to look for."}
+                        "n_tags": "Number of previous POS tags to look for.",
+                        "ignore_pos_tags": "Whether to ignore this feature type or not.",
+                        "ignore_target_context": "Whether to ignore this feature type or not.",
+                        "ignore_source_context": "Whether to ignore this feature type or not."}
 
     def __init__(self, config):
         self.config = config
@@ -465,7 +468,7 @@ class NNPrediction():
 class PronounPrediction(NNPrediction):
 
     """
-
+    This is the main model for cross-lingual pronoun prediction.
     """
 
     model_parameters = dict(NNPrediction.model_parameters)
@@ -492,31 +495,36 @@ class PronounPrediction(NNPrediction):
             sentence_details = zip(sentence.removed_words_source_indices, target_contexts, source_contexts)
             for k, (source_indices, target_context, source_context) in enumerate(sentence_details):
                 features = []
-                # Add target context features
-                for i, context_word in enumerate(target_context):
-                    if i != len(target_context) // 2:  # ignore word to replace
-                        features.append(self.word2id(context_word, update_vocab=update_vocab))
 
-                # Add source context features
-                for context_word in source_context:
-                    if isinstance(context_word, list):
-                        features.append(self.word2id(context_word[0], update_vocab=update_vocab))
-                    else:
-                        features.append(self.word2id(context_word, update_vocab=update_vocab))
+                if not self.config.get('ignore_target_context', False):
+                    # Add target context features
+                    for i, context_word in enumerate(target_context):
+                        if i != len(target_context) // 2:  # ignore word to replace
+                            features.append(self.word2id(context_word, update_vocab=update_vocab))
 
-                # Add 5 previous nouns
-                noun_tags = ("NN", "NNS", "NNP", "NNPS", "PRP", "PRP$")
-                for nouns in sentence.get_previous_target_words_with_tag(source_indices[0],
-                                                                         self.config['n_tags'], tags=noun_tags):
-                    # only add first target noun
-                    features.append(self.word2id(nouns[0]))
+                if not self.config.get('ignore_source_context', False):
+                    # Add source context features
+                    for context_word in source_context:
+                        if isinstance(context_word, list):
+                            features.append(self.word2id(context_word[0], update_vocab=update_vocab))
+                        else:
+                            features.append(self.word2id(context_word, update_vocab=update_vocab))
 
-                # Add 5 previous articles
-                article_tags = ("DT",)
-                for articles in sentence.get_previous_target_words_with_tag(source_indices[0],
-                                                                            self.config['n_tags'], tags=article_tags):
-                    # only add first target noun
-                    features.append(self.word2id(articles[0]))
+                if not self.config.get('ignore_pos_tags', False):
+                    # Add n_tags previous nouns
+                    noun_tags = ("NN", "NNS", "NNP", "NNPS", "PRP", "PRP$")
+                    for nouns in sentence.get_previous_target_words_with_tag(source_indices[0],
+                                                                             self.config['n_tags'], tags=noun_tags):
+                        # only add first target noun
+                        features.append(self.word2id(nouns[0]))
+
+                    # Add n_tags previous articles
+                    article_tags = ("DT",)
+                    for articles in sentence.get_previous_target_words_with_tag(source_indices[0],
+                                                                                self.config['n_tags'],
+                                                                                tags=article_tags):
+                        # only add first target noun
+                        features.append(self.word2id(articles[0]))
 
                 x_matrix.append(features)
                 # only store y values when we actually know them. some test data comes without.
