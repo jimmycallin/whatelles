@@ -84,7 +84,7 @@ One of the first examples of using discourse analysis for pronoun translation in
 While they saw score improvements in pronoun prediction, they claim the bad performance of the co-reference resolution seriously impacted the results negatively.
 They performed this as a post-processing step, which seems to be primarily for practical reasons since most popular SMT frameworks such as Moses \cite{Koehn2007Moses} do not provide previous target translations for use as features.
 Guillou~et~al.~\shortcite{Guillou2012Improving} tried a similar approach for English-Czech translation with little improvement even after factoring out major sources of error. They singled out one possible reason for this, which is how a reasonable translation alternative of a pronoun's antecedent could affect the predicted pronoun, including the possibility of simply canceling out pronouns. E.g, \emph{the u.s. , claiming some success in its trade} could be paraphrased as \emph{the u.s. , claiming some success in trade diplomacy} without any loss in translation quality, while still affecting the score negatively.
-This demonstrates there is necessary linguistic information in the target translation that simply is not available in the source.
+This demonstrates there is necessary linguistic information in the target translation that is not available in the source.
 Hardmeier~and~Frederico~\shortcite{Hardmeier2010Modelling} extended the phrase-based Moses decoder with a word dependency model based on existing co-reference resolution systems, by parsing the output of the decoder and catching its previous translations.
 Unfortunately they only produced minor improvements for English-German.
 
@@ -100,8 +100,8 @@ The pronouns in focus are \emph{it} and \emph{they}, where the word aligned phra
 The word alignment is included, and was automatically produced by GIZA++ \cite{Och2003Giza}.
 We are also aware of document boundaries within the corpus.
 The corpus is a set of three different English-French parallel corpora gathered from three separate domains:
-transcribed TED talks, Europarl \cite{Koehn2005Europarl} with transcribed proceedings from the European parliament, and a set of news text.
-Test data is a collection of transcribed TED talks, in total 12 documents containing 2093 sentences with a total of 1105 classification problems, with a similar development set.
+transcribed TED talks, Europarl \cite{Koehn2005Europarl} with transcribed proceedings from the European parliament, and a set of news texts.
+Test data is a collection of transcribed TED talks, in total 12 documents containing 2093 sentences with a total of 1105 classification problems, with a similar development set. Further details of the task setup, including final performance results, are available in Hardmeier~et.~al.~\shortcite{shared-task-overview}.
 
 \begin{figure*}[tbp]
     \centering
@@ -118,20 +118,23 @@ The final architecture as shown in \cref{fig:nnarchitecture} uses both source co
 The main difference in our model lies in avoiding using an external anaphora resolution system to collect antecedent features.
 Rather, to simplify the model we simply look at the four closest previous nouns and determiners in English, and use the corresponding aligned French nouns and articles in the model, as illustrated in \cref{fig:posexample}.
 Wherever the alignments map to more than one word, only the left-most word in the phrase is used.
-We encode these nouns and articles as embeddings in the first input layer. This way, the order of each word is embedded which should approximate the distance from the missing pronoun.
+We encode these nouns and articles as embeddings in the first input layer. This way, the order of each word is embedded, which should approximate the distance from the missing pronoun.
 Additionally, we allow ourselves to look at the French context of the missing pronoun.
-While the automatically translated context might be too unreliable, French usage should be a better indicator for some of the classes, e.g. \emph{ce} which is highly dependent being precedent of \emph{est}.
+While the automatically translated context might be too unreliable, French usage should be a better indicator for some of the classes, e.g. \emph{ce} which is highly dependent on being precedent of \emph{est}.
 See \cref{fig:contextexample} for an example of context in source and translation as features.
 
 Similarly to the original model in Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, the neural network is trained using stochastic gradient descent with mini-batches and L2 regularization.
 Cross-entropy is used as a cost function, with a softmax output layer.
-Furthermore the dimensionality of the embeddings is increased from 20 to 50, since we saw minor improvements of the scores on the development set, with a hidden layer size of 50.
+Furthermore the dimensionality of the embeddings is increased from 20 to 50, since we saw minor improvements of the scores on the development set with the increase.
 To reduce training time and speed up convergence, we use $\tanh$ as activation function between the hidden layers \cite{Lecun2012Efficient}, in contrast to the sigmoid function used in Hardmeier's model.
 To avoid overfitting, early stopping is introduced where the training stops if no improvements have been found within a certain number of iterations.
 This usually results in a training time of 130 epochs, when run on TED data.
 The model uses a layer-wise uniform random weight initialization as proposed by Glorot~and~Bengio~\shortcite{Glorot2010Understanding}, where they show that neural network models using $\tanh$ as activation function generally perform better with a uniformally distributed random initialization within the interval $[-\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}},\frac{\sqrt{6}}{\sqrt{\mbox{\small fan}_{in}+\mbox{\small fan}_{out}}}]$, where $\mbox{fan}_{in}$ and $\mbox{fan}_{out}$ are number of inputs and number of hidden units respectively.
 
-Since the model uses a fixed context window size for English and French, as well as a fixed number of preceding nouns and articles, we need to find out optimal parameter settings. We observe that a parameter setting of 4+4 context window for English and French, with 3 preceding nouns and articles each perform well. \Cref{figure:parametervary} showcases how window size and number of preceding POS tags affect the performance outcome on the development set. We also looked into asymmetric window sizes, but noticed no improvements (\cref{figure:winasym}).
+Since the model uses a fixed context window size for English and French, as well as a fixed number of preceding nouns and articles, we need to find out optimal parameter settings. We observe that a parameter setting of 4+4 context window for English and French, with 3 preceding nouns and articles each perform well. \Cref{figure:parametervary} showcases how window size and number of preceding POS tags affect the performance outcome on the development set. We also look into asymmetric window sizes, but notice no improvements (\cref{figure:winasym}).
+
+Feature ablation as presented in \cref{tbl:ablationscores} shows that while all feature classes are required for retrieving top score, POS features are generally the feature class that contributes the least to improved results. It is curious to notice that \emph{elle} even performs better without the POS features, while \emph{elles} receives a sufficient bump with them. Furthermore, the results indicate that target features is the most informative of the tested feature classes.
+
 The neural network is implemented in Theano \cite{Bergstra2010Theano}, and is publicly available on Github.\footnote{\url{http://github.com/jimmycallin/whatelles}}
 
 \begin{figure}[tbp]
@@ -208,6 +211,28 @@ The neural network is implemented in Theano \cite{Bergstra2010Theano}, and is pu
 \label{figure:winasym}
 \end{figure}
 
+\begin{table}[t]
+\centering
+    \begin{tabular}{lllll}
+         & POS & Source & Target & None \\ \midrule
+   ce    & \textbf{0.9236}   & 0.8629         & 0.6405         &  0.8822 \\
+   cela  & 0.6179   & \textbf{0.6324}         & 0.4156         &  0.6260 \\
+   elle  & 0.2963   & 0.3019         & 0.0930          &  \textbf{0.3571} \\
+   elles & \textbf{0.2500}   & 0.2069         & 0.1667         &  0.2222 \\
+   il    & 0.5366   & 0.4426         & 0.3651         &  \textbf{0.5620} \\
+   ils   & 0.8364   & 0.8345         & 0.7050         &  \textbf{0.8754} \\
+   OTHER & \textbf{0.8976}   & 0.8769         & 0.6969         &  0.8847 \\
+   \midrule
+   Macro & 0.5526   & 0.5128          & 0.3569          &  \textbf{0.6299} \\
+   Micro & 0.7871   & 0.7510          & 0.5797          &  \textbf{0.8019} \\
+   \hline
+    \end{tabular}
+    \caption{F1-score for each label in a feature ablation test, where the specified feature classes were \emph{removed} in training and testing on the development set. The \emph{None} column has \emph{no} removed features. Micro score is the overall classification score, while macro is the average over each class.}
+    \label{tbl:ablationscores}
+\end{table}
+
+
+
 \section{Results}
 
 The results from the shared task are presented in \cref{tbl:resultscores} and \cref{tbl:confmatrix}.
@@ -217,7 +242,7 @@ The overall macro F1 score ends up being 55.3\%.
 \begin{table}[t]
 \centering
     \begin{tabular}{llll}
-          & Precision & Recall  & F1      \\ \midrule
+          & \makebox[16mm][l]{Precision} & \makebox[16mm][l]{Recall}  & \makebox[16mm][l]{F1}      \\ \midrule
     ce    & 0.8291   & 0.8967 & 0.8616 \\
     cela  & 0.7143   & 0.6202 & 0.6639 \\
     elle  & 0.5000   & 0.2651 & 0.3465 \\
@@ -259,7 +284,7 @@ Classes highly dependent on local context, such as \emph{ce}, perform especially
 This is supported by the large performance gains from 4+0 to 4+1 in \cref{figure:winasym}, since \emph{est} usually follows \emph{ce}.
 % il      c'      if you ask for the happiness of the remembering self , it 's a completely different thing .     si vous réfléchissez sur le bonheur du " moi des souvenirs " , REPLACE est une toute autre histoire .
 Singular and plural classes rarely get confused, due to them being predicated on the English pronoun which marks \emph{it} or \emph{they}.
-The classes of feminine gender does not perform as well, especially recall-wise, but this was to be expected since the only information from which to infer its antecedent is ordered distance from the pronoun in focus.
+The classes of feminine gender do not perform as well, especially recall-wise, but this was to be expected since the only information from which to infer its antecedent is ordered distance from the pronoun in focus.
 It is apparent that the model has a bias towards making majority class predictions, especially given the low number of wrong predictions on the \emph{elle} and \emph{elles} classes relative to \emph{il} and \emph{ils}.
 The high recall of \emph{ils} is explained by this phenomenon as well.
 An additional hypothesis is that there is simply too little data to realistically create usable embeddings, except for a few reoccurring circumstances.
@@ -275,7 +300,7 @@ The extra number of features as well as the increase in embedding dimensionality
 Furthermore, the implementation is made in such a way that further performance increases are to be expected if you run it on CUDA compatible GPU with minor changes.
 
 While three separate training data collections were available, we only found interesting results when using data from the same domain as the test data, i.e. transcribed TED talks.
-To overcome the skew class distribution, attempts were made at oversampling the less frequent classes from Europarl, but unfortunately this only led to performance loss on the development set.
+To overcome the skewed class distribution, attempts were made at oversampling the less frequent classes from Europarl, but unfortunately this only led to performance loss on the development set.
 The model does not seem to generalize well from other types of training data such as Europarl or news text, despite Europarl being transcribed speech as well.
 This is an obvious shortcoming of the model.
 
@@ -284,6 +309,7 @@ We tried several alterations in parameter settings for context window and POS ta
 Right context seems to be more important than left context, which could be due to the fact that pronouns in their role as subjects largely appears early in sentences, making left context nothing but sentence start markers.
 
 In future work, it would be interesting to look into how much source context actually contributes to the classification, given a target context.
+Preliminary results of the feature ablation test in \cref{tbl:ablationscores} indicate that we indeed capture information for at least some of the classes with the use of source features, while it is not quite clear why this is the case.
 While the English context is nice to have, since you cannot be entirely certain of the translation quality in the target language, intuitively all necessary linguistic information for inferring the correct pronoun should be available in the target translation.
 After all, the gender of a pronoun is not dependent on whatever source language you translate from, as long as you have found its antecedent.
 If the source text still were found useful, all English word embeddings could be pre-trained on a large number of translation examples and through this process learn the most probable cross-linguistic gender.
@@ -292,11 +318,11 @@ In the same manner, gender aware French word embeddings would hypothetically inc
 \section{Conclusion}
 
 In this work, we develop a cross-lingual pronoun prediction classifier based on a feed-forward neural network.
-The model is heavily inspired by Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, while trying to simplify the architecture by simply using preceding nouns and determiners for coreference resolution rather than using features from an anaphora extractor such as BART, as in the original paper, since this causes large performance overhead.
+The model is heavily inspired by Hardmeier~et~al.~\shortcite{Hardmeier2013Latent}, while trying to simplify the architecture by using preceding nouns and determiners for coreference resolution rather than using features from an anaphora extractor such as BART, as in the original paper.
 
 We find out that the model indeed performs on par with similar models, while being easier to train.
-There are some expected drops in performance for the less common classes heavily dependent on finding the correct anecedent.
-We discuss probable causes for this, as well as possible solutions using pretrained embeddings on larger amounts of training data.
+There are some expected drops in performance for the less common classes heavily dependent on finding their antecedent.
+We discuss probable causes for this, as well as possible solutions using pretrained embeddings on larger amounts of data.
 
 \bibliographystyle{acl}
 \bibliography{bibliography}
