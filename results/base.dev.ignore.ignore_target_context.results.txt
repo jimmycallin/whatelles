@@ -1,0 +1,79 @@
+
+<<< I. COARSE EVALUATION >>>
+
+Confusion matrix:
+          ce  cela  elle  elles   il   ils  OTHER <-- classified as
+       +------------------------------------------+ -SUM-
+   ce  |   98    17     1     2    12     3    15 |   148
+ cela  |   10    32     4     0     8     1    16 |    71
+ elle  |   10     5     2     1     2     3     7 |    30
+ elles |    0     1     0     3     2     6     4 |    16
+   il  |    9     8     3     0    23     1    11 |    55
+  ils  |    2     1     1    11     8    98    18 |   139
+ OTHER |   29    19     2     3    16    27   192 |   288
+       +------------------------------------------+
+ -SUM-   158    83    13    20    71   139   263 
+
+Accuracy (calculated for the above confusion matrix) = 448/747 = 59.97%
+
+Results for the individual labels:
+       ce  :    P =    98/  158 =  62.03%     R =    98/  148 =  66.22%     F1 =  64.05%
+     cela  :    P =    32/   83 =  38.55%     R =    32/   71 =  45.07%     F1 =  41.56%
+     elle  :    P =     2/   13 =  15.38%     R =     2/   30 =   6.67%     F1 =   9.30%
+     elles :    P =     3/   20 =  15.00%     R =     3/   16 =  18.75%     F1 =  16.67%
+       il  :    P =    23/   71 =  32.39%     R =    23/   55 =  41.82%     F1 =  36.51%
+      ils  :    P =    98/  139 =  70.50%     R =    98/  139 =  70.50%     F1 =  70.50%
+     OTHER :    P =   192/  263 =  73.00%     R =   192/  288 =  66.67%     F1 =  69.69%
+
+Micro-averaged result:
+P =   448/  747 =  59.97%     R =   448/  747 =  59.97%     F1 =  59.97%
+
+MACRO-averaged result:
+P =  43.84%	R =  45.10%	F1 =  44.04%
+
+
+
+
+<<< II. FINE-GRAINED EVALUATION >>>
+
+Confusion matrix:
+          ce  cela  elle  elles   il   ils    on    ça  OTHER <-- classified as
+       +------------------------------------------------------+ -SUM-
+   ce  |   98     5     1     2    12     3     1    12    14 |   148
+ cela  |    2     2     0     0     3     0     0     2     1 |    10
+ elle  |   10     2     2     1     2     3     0     3     7 |    30
+ elles |    0     0     0     3     2     6     1     1     3 |    16
+   il  |    9     2     3     0    23     1     1     6    10 |    55
+  ils  |    2     0     1    11     8    98     3     1    15 |   139
+   on  |    0     0     0     2     1     3     1     1     2 |    10
+   ça  |    8     9     4     0     5     1     0    19    15 |    61
+ OTHER |   29     5     2     1    15    24     2    13   187 |   278
+       +------------------------------------------------------+
+ -SUM-   158    25    13    20    71   139     9    58   254 
+
+Accuracy (calculated for the above confusion matrix) = 433/747 = 57.97%
+
+Results for the individual labels:
+       ce  :    P =    98/  158 =  62.03%     R =    98/  148 =  66.22%     F1 =  64.05%
+     cela  :    P =     2/   25 =   8.00%     R =     2/   10 =  20.00%     F1 =  11.43%
+     elle  :    P =     2/   13 =  15.38%     R =     2/   30 =   6.67%     F1 =   9.30%
+     elles :    P =     3/   20 =  15.00%     R =     3/   16 =  18.75%     F1 =  16.67%
+       il  :    P =    23/   71 =  32.39%     R =    23/   55 =  41.82%     F1 =  36.51%
+      ils  :    P =    98/  139 =  70.50%     R =    98/  139 =  70.50%     F1 =  70.50%
+       on  :    P =     1/    9 =  11.11%     R =     1/   10 =  10.00%     F1 =  10.53%
+       ça  :    P =    19/   58 =  32.76%     R =    19/   61 =  31.15%     F1 =  31.93%
+     OTHER :    P =   187/  254 =  73.62%     R =   187/  278 =  67.27%     F1 =  70.30%
+
+Micro-averaged result:
+P =   433/  747 =  57.97%     R =   433/  747 =  57.97%     F1 =  57.97%
+
+MACRO-averaged result:
+P =  35.64%	R =  36.93%	F1 =  35.69%
+
+
+
+
+<<< III. OFFICIAL SCORE >>>
+
+MACRO-averaged fine-grained F1:  35.69%
+results/base.dev.ignore.ignore_target_context.txt	35.691247296332	57.9651941097724
