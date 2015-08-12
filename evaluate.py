@@ -7,16 +7,26 @@ from data_utils import Sentence
 
 
 def load_classes(classes_filepath):
+    """
+    Loads the file with class information. Usually called classes.csv
+    """
     with open(classes_filepath) as f:
         return [line.split(",")[1].strip() for line in f]
 
 
 def load_class_distributions(classes_filepath):
+    """
+    Load file with class information, keep the distribution data.
+    """
     with open(classes_filepath) as f:
         return {line.split(",")[1].strip(): int(line.split(",")[0].strip()) for line in f}
 
 
 def load_training_data(config):
+    """
+    Loads a generator with training data, either from data.csv or data-with-doc.csv
+    Returns: A generator of data as a list of data_utils.Sentence instances.
+    """
     if 'oversample_filepath' in config:
         class_distribution = load_class_distributions(config['classes_filepath'])
         oversample_from = oversample(load_data(config['oversample_filepath']), class_distribution)
@@ -65,6 +75,10 @@ def load_data(data_paths):
 
 
 def oversample(oversample_from, current_class_distribution):
+    """
+    Oversample from a class distribution given a separate data corpus, so that all classes have about an equal
+    distribution.
+    """
     biggest_class, biggest_class_val = max(current_class_distribution.items(), key=lambda x: x[1])
     n_to_sample = {cl: biggest_class_val - n_instances for cl, n_instances in current_class_distribution.items()}
     after = current_class_distribution.copy()
@@ -106,6 +120,9 @@ def test_model(model, test_data):
 
 
 def evaluate(config):
+    """
+    Evaluate a model using the given config. The config should be dict like.
+    """
     config['classes'] = load_classes(config['classes_filepath'])
     test_data = load_test_data(config)
     model = train_model(config)
