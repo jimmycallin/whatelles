@@ -209,12 +209,6 @@ class LogisticRegression(object):
     def predicted(self):
         return self.y_pred
 
-    def threshold_moving(self):
-        """
-        http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.93.9436&rep=rep1&type=pdf
-        """
-        pass
-
     def errors(self, y):
         """Return a float representing the number of errors in the minibatch
         over the total number of examples of the minibatch ; zero one
@@ -434,7 +428,7 @@ class NNPrediction():
 
     def output(self, predictions, output_path):
         """
-
+        Outputs the prediction results in a format recognized by the discoMT_scorer.pl.
         """
         pred_iter = iter(predictions)
         test_instances = []
@@ -534,6 +528,9 @@ class PronounPrediction(NNPrediction):
         return np.asarray(x_matrix, dtype=np.int32), np.asarray(y_vector, dtype=np.int32)
 
     def word2id(self, word, update_vocab=False):
+        """
+        Generates and retrieves the index of a given word, used for getting the corresponding embedding.
+        """
         if word not in self._word2id and update_vocab:
             self._word2id[word] = self.no_words
             self.no_words += 1
